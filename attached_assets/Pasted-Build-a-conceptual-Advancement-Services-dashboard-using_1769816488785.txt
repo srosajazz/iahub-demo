@@ -1,0 +1,72 @@
+Build a conceptual Advancement Services dashboard using Python (Django) and TypeScript.
+
+Context (Narrative Only):
+This demo is designed to illustrate how Advancement Services leadership might think about improving donor engagement and pipeline visibility in an environment where only ~2% of a large constituent population (e.g., 140k+ records) are active donors. All data used must be synthetic and illustrative only, and must not represent real institutional data.
+
+Backend (Django):
+
+Create a Django project using Django REST Framework.
+
+Expose a read-only API endpoint /api/dashboard/ that returns synthetic fundraising data only.
+
+The response should include:
+
+Donor pipeline stages (Discovery, Cultivation, Solicitation, Stewardship) with counts
+
+Campaign goal vs projected revenue
+
+Engagement indicators that conceptually reflect the challenge of low donor activation (without using real numbers)
+
+Basic data-quality indicators (e.g., missing capacity %, duplicate risk %)
+
+Enable CORS for local development.
+
+Follow clean architecture principles (thin views, separated logic, no direct database dependency).
+
+Frontend (TypeScript):
+
+Use Vite with vanilla TypeScript.
+
+Fetch data from the Django API.
+
+Render a one-page, leadership-friendly dashboard using Chart.js that includes:
+
+A donor pipeline visualization
+
+A simple campaign goal vs forecast visualization
+
+A small panel highlighting engagement opportunity (e.g., “Large reachable audience, low active donor rate”)
+
+Add a visible disclaimer at the top of the page:
+“Illustrative dashboard using synthetic data. Conceptual example only.”
+
+Constraints:
+
+Do NOT use real donor names, Berklee branding, or live CRM connections.
+
+Do NOT imply real institutional performance or metrics.
+
+Keep the UI simple, neutral, and executive-readable.
+
+Goal:
+Create a visual, non-production demo that communicates how analytics, pipeline modeling, and governance-aware reporting can support Advancement Services strategy and leadership decision-making.
+
+🔐 Why this is safe and strong
+
+The 2% / 140k stat is clearly framed as context, not a dataset
+
+You avoid any implication of real Berklee metrics
+
+It reinforces Question 3 without risking misrepresentation
+
+It shows strategic awareness, not insider data use
+
+If you want next, I can:
+
+Help you add one small “Opportunity Funnel” visual tied to the 2% context
+
+Help you script how to explain this slide in under 60 seconds
+
+Review the generated code and simplify it further for interview use
+
+You’re being careful and compelling — exactly the right balance.
