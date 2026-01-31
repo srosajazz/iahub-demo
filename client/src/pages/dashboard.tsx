@@ -127,6 +127,7 @@ type Donor = {
   phone: string | null;
   city: string | null;
   state: string | null;
+  imageUrl: string | null;
   createdAt: string;
 };
 
@@ -466,6 +467,7 @@ export default function DashboardPage() {
   // Donor CRUD state
   const [donorDialogOpen, setDonorDialogOpen] = useState(false);
   const [editingDonor, setEditingDonor] = useState<Donor | null>(null);
+  const [viewDonor, setViewDonor] = useState<Donor | null>(null);
   const [donorForm, setDonorForm] = useState({
     name: "",
     type: "Individual" as "Individual" | "Corporation" | "Foundation",
@@ -477,6 +479,7 @@ export default function DashboardPage() {
     phone: "",
     city: "",
     state: "",
+    imageUrl: "",
   });
 
   // Fetch data from API
@@ -562,6 +565,7 @@ export default function DashboardPage() {
       phone: "",
       city: "",
       state: "",
+      imageUrl: "",
     });
     setDonorDialogOpen(true);
   }
@@ -579,6 +583,7 @@ export default function DashboardPage() {
       phone: donor.phone || "",
       city: donor.city || "",
       state: donor.state || "",
+      imageUrl: donor.imageUrl || "",
     });
     setDonorDialogOpen(true);
   }
@@ -595,6 +600,7 @@ export default function DashboardPage() {
       phone: donorForm.phone || null,
       city: donorForm.city || null,
       state: donorForm.state || null,
+      imageUrl: donorForm.imageUrl || null,
     };
 
     if (editingDonor) {
@@ -1972,18 +1978,24 @@ export default function DashboardPage() {
                           data-testid={`row-donor-${donor.id}`}
                         >
                           <td className="py-3 pr-4">
-                            <div className="flex items-center gap-2">
-                              <div className="grid h-8 w-8 place-items-center rounded-full bg-secondary">
-                                {donor.type === "Individual" ? (
+                            <button
+                              onClick={() => setViewDonor(donor)}
+                              className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
+                              data-testid={`button-view-donor-${donor.id}`}
+                            >
+                              <div className="grid h-8 w-8 place-items-center rounded-full bg-secondary overflow-hidden">
+                                {donor.imageUrl ? (
+                                  <img src={donor.imageUrl} alt={donor.name} className="h-full w-full object-cover" />
+                                ) : donor.type === "Individual" ? (
                                   <User className="h-4 w-4" />
                                 ) : (
                                   <Building2 className="h-4 w-4" />
                                 )}
                               </div>
-                              <span className="font-medium" data-testid={`text-donor-name-${donor.id}`}>
+                              <span className="font-medium text-primary hover:underline" data-testid={`text-donor-name-${donor.id}`}>
                                 {donor.name}
                               </span>
-                            </div>
+                            </button>
                           </td>
                           <td className="py-3 pr-4">
                             <Badge
@@ -2279,6 +2291,27 @@ export default function DashboardPage() {
                 />
               </div>
             </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="donor-image">Profile Image URL</Label>
+              <Input
+                id="donor-image"
+                value={donorForm.imageUrl}
+                onChange={(e) => setDonorForm({ ...donorForm, imageUrl: e.target.value })}
+                placeholder="https://example.com/image.jpg"
+                data-testid="input-donor-image"
+              />
+              {donorForm.imageUrl && (
+                <div className="mt-2 flex justify-center">
+                  <img 
+                    src={donorForm.imageUrl} 
+                    alt="Preview" 
+                    className="h-20 w-20 rounded-full object-cover border-2 border-border"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <DialogFooter>
@@ -2298,6 +2331,113 @@ export default function DashboardPage() {
             >
               {editingDonor ? "Update Donor" : "Add Donor"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewDonor} onOpenChange={(open) => !open && setViewDonor(null)}>
+        <DialogContent className="border-border/70 bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70 max-w-lg">
+          <DialogHeader>
+            <DialogTitle data-testid="text-view-donor-title">Donor Profile</DialogTitle>
+            <DialogDescription>View donor information and update their profile image.</DialogDescription>
+          </DialogHeader>
+
+          {viewDonor && (
+            <div className="space-y-6">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="h-24 w-24 rounded-full bg-secondary overflow-hidden border-4 border-border">
+                    {viewDonor.imageUrl ? (
+                      <img 
+                        src={viewDonor.imageUrl} 
+                        alt={viewDonor.name} 
+                        className="h-full w-full object-cover"
+                      />
+                    ) : viewDonor.type === "Individual" ? (
+                      <div className="h-full w-full flex items-center justify-center">
+                        <User className="h-10 w-10 text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center">
+                        <Building2 className="h-10 w-10 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold" data-testid="view-donor-name">{viewDonor.name}</h3>
+                  <Badge 
+                    variant={viewDonor.type === "Individual" ? "secondary" : viewDonor.type === "Corporation" ? "default" : "outline"}
+                    className="mt-1"
+                  >
+                    {viewDonor.type}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid gap-4 text-sm">
+                {viewDonor.organization && (
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">Organization</span>
+                    <span className="font-medium">{viewDonor.organization}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-b border-border/50 pb-2">
+                  <span className="text-muted-foreground">Total Given</span>
+                  <span className="font-semibold text-green-600">${Number(viewDonor.totalGiven).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between border-b border-border/50 pb-2">
+                  <span className="text-muted-foreground">Last Gift</span>
+                  <div className="text-right">
+                    <div className="font-medium">${Number(viewDonor.lastGiftAmount).toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground">{new Date(viewDonor.lastGiftDate).toLocaleDateString()}</div>
+                  </div>
+                </div>
+                {(viewDonor.email || viewDonor.phone) && (
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">Contact</span>
+                    <div className="text-right text-xs">
+                      {viewDonor.email && <div>{viewDonor.email}</div>}
+                      {viewDonor.phone && <div>{viewDonor.phone}</div>}
+                    </div>
+                  </div>
+                )}
+                {(viewDonor.city || viewDonor.state) && (
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">Location</span>
+                    <span>{viewDonor.city && viewDonor.state ? `${viewDonor.city}, ${viewDonor.state}` : viewDonor.city || viewDonor.state}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Added</span>
+                  <span>{new Date(viewDonor.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="secondary"
+              className="rounded-full"
+              onClick={() => setViewDonor(null)}
+              data-testid="button-close-view-donor"
+            >
+              Close
+            </Button>
+            {canEditDonors && viewDonor && (
+              <Button
+                className="rounded-full"
+                onClick={() => {
+                  openEditDonor(viewDonor);
+                  setViewDonor(null);
+                }}
+                data-testid="button-edit-from-view"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Donor
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
