@@ -14,8 +14,8 @@ interface User {
 
 const USERS: User[] = [
   { username: "admin", password: "IAberk26", role: "admin", displayName: "Admin User" },
-  { username: "president", password: "IAberk26", role: "president", displayName: "Dr. Erica Muhl" },
-  { username: "vp", password: "IAberk26", role: "vice_president", displayName: "VP of Advancement" },
+  { username: "president", password: "IAberk26", role: "president", displayName: "Jim Lucchese" },
+  { username: "vp", password: "IAberk26", role: "vice_president", displayName: "Edward J. Lewis, III" },
   { username: "staff", password: "IAberk26", role: "staff", displayName: "Staff Member" },
 ];
 

@@ -146,11 +146,11 @@ export default function LoginPage() {
               </div>
               <div className="flex justify-between items-center p-2 rounded bg-muted/50">
                 <span className="font-medium">president</span>
-                <span className="text-muted-foreground">President - Can view donors</span>
+                <span className="text-muted-foreground">Jim Lucchese - Can view donors</span>
               </div>
               <div className="flex justify-between items-center p-2 rounded bg-muted/50">
                 <span className="font-medium">vp</span>
-                <span className="text-muted-foreground">Vice President - Can view donors</span>
+                <span className="text-muted-foreground">Edward J. Lewis, III - Can view donors</span>
               </div>
               <div className="flex justify-between items-center p-2 rounded bg-muted/50">
                 <span className="font-medium">staff</span>
