@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertDueItemSchema, insertMessageSchema, insertActionItemSchema } from "@shared/schema";
+import { insertDueItemSchema, insertMessageSchema, insertActionItemSchema, insertDonorSchema } from "@shared/schema";
 
 const VALID_CREDENTIALS = {
   username: "admin",
@@ -151,6 +151,28 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating action item:", error);
       res.status(500).json({ error: "Failed to update action item" });
+    }
+  });
+
+  // Donors API
+  app.get("/api/donors", async (_req, res) => {
+    try {
+      const donorList = await storage.getDonors();
+      res.json(donorList);
+    } catch (error) {
+      console.error("Error fetching donors:", error);
+      res.status(500).json({ error: "Failed to fetch donors" });
+    }
+  });
+
+  app.post("/api/donors", async (req, res) => {
+    try {
+      const parsed = insertDonorSchema.parse(req.body);
+      const donor = await storage.createDonor(parsed);
+      res.json(donor);
+    } catch (error) {
+      console.error("Error creating donor:", error);
+      res.status(400).json({ error: "Invalid donor data" });
     }
   });
 

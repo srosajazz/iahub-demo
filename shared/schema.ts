@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -57,3 +57,27 @@ export const insertActionItemSchema = createInsertSchema(actionItems).omit({
 
 export type InsertActionItem = z.infer<typeof insertActionItemSchema>;
 export type ActionItem = typeof actionItems.$inferSelect;
+
+// Donors list
+export const donors = pgTable("donors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  type: varchar("type", { length: 20 }).notNull(), // "Individual" | "Corporation" | "Foundation"
+  organization: text("organization"),
+  totalGiven: decimal("total_given", { precision: 12, scale: 2 }).notNull(),
+  lastGiftDate: timestamp("last_gift_date", { withTimezone: true }).notNull(),
+  lastGiftAmount: decimal("last_gift_amount", { precision: 12, scale: 2 }).notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  city: text("city"),
+  state: text("state"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+});
+
+export const insertDonorSchema = createInsertSchema(donors).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertDonor = z.infer<typeof insertDonorSchema>;
+export type Donor = typeof donors.$inferSelect;

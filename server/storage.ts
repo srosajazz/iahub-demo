@@ -5,12 +5,15 @@ import {
   dueItems,
   messages,
   actionItems,
+  donors,
   type DueItem,
   type InsertDueItem,
   type Message,
   type InsertMessage,
   type ActionItem,
   type InsertActionItem,
+  type Donor,
+  type InsertDonor,
 } from "@shared/schema";
 
 const pool = new Pool({
@@ -36,6 +39,10 @@ export interface IStorage {
   getActionItem(id: string): Promise<ActionItem | undefined>;
   createActionItem(item: InsertActionItem): Promise<ActionItem>;
   updateActionItemDone(id: string, isDone: boolean): Promise<ActionItem | undefined>;
+
+  // Donors
+  getDonors(): Promise<Donor[]>;
+  createDonor(donor: InsertDonor): Promise<Donor>;
 }
 
 export class DbStorage implements IStorage {
@@ -98,6 +105,16 @@ export class DbStorage implements IStorage {
       .set({ isDone: isDone ? 1 : 0 })
       .where(eq(actionItems.id, id))
       .returning();
+    return result[0];
+  }
+
+  // Donors
+  async getDonors(): Promise<Donor[]> {
+    return await db.select().from(donors).orderBy(desc(donors.lastGiftDate));
+  }
+
+  async createDonor(donor: InsertDonor): Promise<Donor> {
+    const result = await db.insert(donors).values(donor).returning();
     return result[0];
   }
 }

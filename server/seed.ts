@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { dueItems, actionItems } from "@shared/schema";
+import { dueItems, actionItems, donors } from "@shared/schema";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -82,6 +82,110 @@ async function seed() {
 
   for (const item of dueItemsData) {
     await db.insert(dueItems).values(item);
+  }
+
+  // Seed donors
+  const donorsData = [
+    {
+      name: "Margaret Chen",
+      type: "Individual",
+      organization: null,
+      totalGiven: "250000.00",
+      lastGiftDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15),
+      lastGiftAmount: "50000.00",
+      email: "m.chen@email.com",
+      phone: "(617) 555-0101",
+      city: "Boston",
+      state: "MA",
+    },
+    {
+      name: "The Morrison Family Foundation",
+      type: "Foundation",
+      organization: "Morrison Family Foundation",
+      totalGiven: "1500000.00",
+      lastGiftDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45),
+      lastGiftAmount: "500000.00",
+      email: "grants@morrisonfoundation.org",
+      phone: "(212) 555-0202",
+      city: "New York",
+      state: "NY",
+    },
+    {
+      name: "Harmony Music Corp",
+      type: "Corporation",
+      organization: "Harmony Music Corporation",
+      totalGiven: "750000.00",
+      lastGiftDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7),
+      lastGiftAmount: "100000.00",
+      email: "giving@harmonymusic.com",
+      phone: "(310) 555-0303",
+      city: "Los Angeles",
+      state: "CA",
+    },
+    {
+      name: "Robert Williams Jr.",
+      type: "Individual",
+      organization: "Williams Holdings LLC",
+      totalGiven: "125000.00",
+      lastGiftDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
+      lastGiftAmount: "25000.00",
+      email: "rwilliams@williams-llc.com",
+      phone: "(617) 555-0404",
+      city: "Cambridge",
+      state: "MA",
+    },
+    {
+      name: "Fender Musical Instruments Foundation",
+      type: "Foundation",
+      organization: "Fender Foundation",
+      totalGiven: "2000000.00",
+      lastGiftDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60),
+      lastGiftAmount: "250000.00",
+      email: "foundation@fender.com",
+      phone: "(480) 555-0505",
+      city: "Scottsdale",
+      state: "AZ",
+    },
+    {
+      name: "Sarah Martinez",
+      type: "Individual",
+      organization: null,
+      totalGiven: "45000.00",
+      lastGiftDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
+      lastGiftAmount: "5000.00",
+      email: "sarah.m@gmail.com",
+      phone: "(617) 555-0606",
+      city: "Brookline",
+      state: "MA",
+    },
+    {
+      name: "SoundWave Technologies",
+      type: "Corporation",
+      organization: "SoundWave Technologies Inc.",
+      totalGiven: "350000.00",
+      lastGiftDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
+      lastGiftAmount: "75000.00",
+      email: "csr@soundwavetech.com",
+      phone: "(415) 555-0707",
+      city: "San Francisco",
+      state: "CA",
+    },
+    {
+      name: "The Berklee Alumni Association",
+      type: "Foundation",
+      organization: "Berklee Alumni Fund",
+      totalGiven: "890000.00",
+      lastGiftDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1),
+      lastGiftAmount: "15000.00",
+      email: "alumni@berklee.edu",
+      phone: "(617) 555-0808",
+      city: "Boston",
+      state: "MA",
+    },
+  ];
+
+  for (const donor of donorsData) {
+    await db.insert(donors).values(donor);
   }
 
   console.log("Seeding complete!");

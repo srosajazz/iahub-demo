@@ -31,6 +31,7 @@ import {
 import {
   ArrowRight,
   Bell,
+  Building2,
   CalendarClock,
   Check,
   ClipboardList,
@@ -40,6 +41,8 @@ import {
   Radar,
   Sparkles,
   Timer,
+  User,
+  Users,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -92,6 +95,21 @@ type ActionItemAPI = {
   impact: "High" | "Medium" | "Low";
   metric: string;
   isDone: number; // 0 or 1
+};
+
+type Donor = {
+  id: string;
+  name: string;
+  type: "Individual" | "Corporation" | "Foundation";
+  organization: string | null;
+  totalGiven: string;
+  lastGiftDate: string;
+  lastGiftAmount: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
+  createdAt: string;
 };
 
 type DashboardData = {
@@ -240,6 +258,12 @@ async function updateActionItemDone(id: string, isDone: boolean): Promise<Action
     body: JSON.stringify({ isDone }),
   });
   if (!res.ok) throw new Error("Failed to update action item");
+  return res.json();
+}
+
+async function fetchDonors(): Promise<Donor[]> {
+  const res = await fetch("/api/donors");
+  if (!res.ok) throw new Error("Failed to fetch donors");
   return res.json();
 }
 
@@ -395,6 +419,11 @@ export default function DashboardPage() {
   const { data: actionItemsAPI = [] } = useQuery({
     queryKey: ["actionItems"],
     queryFn: fetchActionItems,
+  });
+
+  const { data: donorsData = [] } = useQuery({
+    queryKey: ["donors"],
+    queryFn: fetchDonors,
   });
 
   // Mutations
@@ -731,6 +760,13 @@ export default function DashboardPage() {
               data-testid="tab-strategy"
             >
               Strategy notes
+            </TabsTrigger>
+            <TabsTrigger
+              value="donors"
+              className="rounded-lg text-xs md:text-sm"
+              data-testid="tab-donors"
+            >
+              Donors
             </TabsTrigger>
           </TabsList>
 
@@ -1716,6 +1752,107 @@ export default function DashboardPage() {
                 </div>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="donors" className="mt-4" data-testid="tabcontent-donors">
+            <Card className="overflow-hidden border-border/70 bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/55">
+              <div className="p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <h2 className="text-lg font-semibold" data-testid="text-donors-title">
+                      Donor Database
+                    </h2>
+                  </div>
+                  <Badge variant="outline" className="rounded-full" data-testid="badge-donor-count">
+                    {donorsData.length} donors
+                  </Badge>
+                </div>
+
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-sm" data-testid="table-donors">
+                    <thead>
+                      <tr className="border-b border-border/70 text-left text-muted-foreground">
+                        <th className="py-3 pr-4 font-medium">Name</th>
+                        <th className="py-3 pr-4 font-medium">Type</th>
+                        <th className="py-3 pr-4 font-medium">Organization</th>
+                        <th className="py-3 pr-4 font-medium text-right">Total Given</th>
+                        <th className="py-3 pr-4 font-medium">Last Gift</th>
+                        <th className="py-3 pr-4 font-medium">Contact</th>
+                        <th className="py-3 pr-4 font-medium">Location</th>
+                        <th className="py-3 font-medium">Added</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {donorsData.map((donor) => (
+                        <tr
+                          key={donor.id}
+                          className="border-b border-border/40 hover:bg-muted/30"
+                          data-testid={`row-donor-${donor.id}`}
+                        >
+                          <td className="py-3 pr-4">
+                            <div className="flex items-center gap-2">
+                              <div className="grid h-8 w-8 place-items-center rounded-full bg-secondary">
+                                {donor.type === "Individual" ? (
+                                  <User className="h-4 w-4" />
+                                ) : (
+                                  <Building2 className="h-4 w-4" />
+                                )}
+                              </div>
+                              <span className="font-medium" data-testid={`text-donor-name-${donor.id}`}>
+                                {donor.name}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4">
+                            <Badge
+                              variant={
+                                donor.type === "Individual"
+                                  ? "secondary"
+                                  : donor.type === "Corporation"
+                                  ? "default"
+                                  : "outline"
+                              }
+                              className="rounded-full"
+                              data-testid={`badge-donor-type-${donor.id}`}
+                            >
+                              {donor.type}
+                            </Badge>
+                          </td>
+                          <td className="py-3 pr-4 text-muted-foreground" data-testid={`text-donor-org-${donor.id}`}>
+                            {donor.organization || "—"}
+                          </td>
+                          <td className="py-3 pr-4 text-right font-semibold text-green-600" data-testid={`text-donor-total-${donor.id}`}>
+                            ${Number(donor.totalGiven).toLocaleString()}
+                          </td>
+                          <td className="py-3 pr-4">
+                            <div data-testid={`text-donor-lastgift-${donor.id}`}>
+                              <div className="font-medium">${Number(donor.lastGiftAmount).toLocaleString()}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {new Date(donor.lastGiftDate).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4">
+                            <div className="text-xs" data-testid={`text-donor-contact-${donor.id}`}>
+                              {donor.email && <div className="text-muted-foreground">{donor.email}</div>}
+                              {donor.phone && <div className="text-muted-foreground">{donor.phone}</div>}
+                              {!donor.email && !donor.phone && <span className="text-muted-foreground">—</span>}
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4 text-muted-foreground" data-testid={`text-donor-location-${donor.id}`}>
+                            {donor.city && donor.state ? `${donor.city}, ${donor.state}` : donor.city || donor.state || "—"}
+                          </td>
+                          <td className="py-3 text-xs text-muted-foreground" data-testid={`text-donor-created-${donor.id}`}>
+                            {new Date(donor.createdAt).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
