@@ -457,6 +457,7 @@ export default function DashboardPage() {
 
   const canViewDonors = role === "admin" || role === "president" || role === "vice_president";
   const canEditDonors = role === "admin";
+  const canEditStrategy = role === "admin" || role === "vice_president";
 
   const [now, setNow] = useState<number>(() => Date.now());
   const [composeOpen, setComposeOpen] = useState(false);
@@ -956,18 +957,20 @@ export default function DashboardPage() {
                         Keep this tight: definitions, contactability, capacity, dedupe.
                       </p>
                     </div>
-                    <Button
-                      variant="secondary"
-                      className="h-9 rounded-full"
-                      onClick={() => {
-                        actions.filter(a => a.isDone).forEach(a => {
-                          updateActionMutation.mutate({ id: a.id, isDone: false });
-                        });
-                      }}
-                      data-testid="button-reset-actions"
-                    >
-                      Reset
-                    </Button>
+                    {canEditStrategy && (
+                      <Button
+                        variant="secondary"
+                        className="h-9 rounded-full"
+                        onClick={() => {
+                          actions.filter(a => a.isDone).forEach(a => {
+                            updateActionMutation.mutate({ id: a.id, isDone: false });
+                          });
+                        }}
+                        data-testid="button-reset-actions"
+                      >
+                        Reset
+                      </Button>
+                    )}
                   </div>
 
                   <div className="mt-4 space-y-3" data-testid="list-actions">
@@ -987,11 +990,13 @@ export default function DashboardPage() {
                           : "border-border/70";
 
                       return (
-                        <button
+                        <div
                           key={a.id}
-                          type="button"
-                          onClick={() => toggleDone(a.id)}
-                          className={`group w-full rounded-xl border ${cardBorder} bg-background/55 p-4 text-left transition hover:bg-background/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                          role={canEditStrategy ? "button" : undefined}
+                          tabIndex={canEditStrategy ? 0 : undefined}
+                          onClick={canEditStrategy ? () => toggleDone(a.id) : undefined}
+                          onKeyDown={canEditStrategy ? (e) => { if (e.key === 'Enter' || e.key === ' ') toggleDone(a.id); } : undefined}
+                          className={`group w-full rounded-xl border ${cardBorder} bg-background/55 p-4 text-left transition ${canEditStrategy ? 'cursor-pointer hover:bg-background/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''}`}
                           data-testid={`button-action-${a.id}`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -1066,7 +1071,7 @@ export default function DashboardPage() {
                               </Badge>
                             </div>
                           </div>
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
