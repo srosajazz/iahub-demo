@@ -600,27 +600,26 @@ export default function DashboardPage() {
 
               <div className="flex items-center gap-2" data-testid="group-alerts">
                 <Badge
-                  variant="secondary"
-                  className="rounded-full"
+                  className="rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 px-3 py-1"
                   data-testid="badge-due-open"
                 >
-                  <Bell className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                  <Bell className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                   {openDueCount} due
                 </Badge>
                 <Badge
-                  variant="secondary"
-                  className={`rounded-full ${
-                    expiredDueCount > 0 ? "bg-red-500/15 text-foreground" : ""
+                  className={`rounded-full px-3 py-1 border ${
+                    expiredDueCount > 0 
+                      ? "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30 animate-pulse" 
+                      : "bg-muted text-muted-foreground border-border"
                   }`}
                   data-testid="badge-due-expired"
                 >
-                  <CalendarClock className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                  <CalendarClock className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                   {expiredDueCount} expired
                 </Badge>
 
                 <Button
-                  variant="secondary"
-                  className="h-8 rounded-full"
+                  className="h-8 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:from-blue-700 hover:to-blue-800 hover:shadow-lg transition-all"
                   onClick={() => openCompose({
                     toTeam: "IA",
                     subject: "IAHub follow-up: due items + next steps",
@@ -767,17 +766,23 @@ export default function DashboardPage() {
                       const done = doneIds.has(a.id);
                       const impactTone =
                         a.impact === "High"
-                          ? "bg-primary/10 text-foreground"
+                          ? "bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30"
                           : a.impact === "Medium"
-                            ? "bg-secondary text-foreground"
+                            ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30"
                             : "bg-muted text-muted-foreground";
+                      
+                      const cardBorder = a.impact === "High" 
+                        ? "border-red-500/40 shadow-red-500/10 shadow-sm" 
+                        : a.impact === "Medium" 
+                          ? "border-amber-500/30" 
+                          : "border-border/70";
 
                       return (
                         <button
                           key={a.id}
                           type="button"
                           onClick={() => toggleDone(a.id)}
-                          className="group w-full rounded-xl border border-border/70 bg-background/55 p-4 text-left transition hover:bg-background/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className={`group w-full rounded-xl border ${cardBorder} bg-background/55 p-4 text-left transition hover:bg-background/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
                           data-testid={`button-action-${a.id}`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -977,8 +982,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <Button
-                      variant="secondary"
-                      className="h-9 rounded-full"
+                      className="h-9 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md hover:from-amber-600 hover:to-orange-600"
                       onClick={() =>
                         openCompose({
                           toTeam: "IA",
@@ -988,7 +992,7 @@ export default function DashboardPage() {
                       }
                       data-testid="button-message-from-due"
                     >
-                      <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
+                      <Bell className="mr-2 h-4 w-4" aria-hidden="true" />
                       Notify team
                     </Button>
                   </div>
@@ -1049,7 +1053,13 @@ export default function DashboardPage() {
                                 </div>
 
                                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                                  <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1">
+                                  <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium ${
+                                    isDone 
+                                      ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" 
+                                      : isExpired 
+                                        ? "bg-red-500/20 text-red-700 dark:text-red-400 animate-pulse" 
+                                        : "bg-blue-500/20 text-blue-700 dark:text-blue-400"
+                                  }`}>
                                     <CalendarClock className="h-4 w-4" aria-hidden="true" />
                                     <span data-testid={`text-due-countdown-${d.id}`}>
                                       {isDone
@@ -1085,8 +1095,8 @@ export default function DashboardPage() {
 
                                 <div className="flex items-center gap-2">
                                   <Button
-                                    variant="secondary"
-                                    className="h-9 rounded-full"
+                                    variant="outline"
+                                    className="h-9 rounded-full border-blue-500/30 hover:bg-blue-500/10 hover:border-blue-500/50"
                                     onClick={() =>
                                       openCompose({
                                         toTeam: "IA",
@@ -1096,16 +1106,17 @@ export default function DashboardPage() {
                                     }
                                     data-testid={`button-message-due-${d.id}`}
                                   >
-                                    <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
+                                    <Mail className="mr-2 h-4 w-4 text-blue-600" aria-hidden="true" />
                                     Message
                                   </Button>
 
                                   <Button
-                                    className="h-9 rounded-full"
+                                    className="h-9 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
                                     onClick={() => markDueDone(d.id)}
                                     disabled={d.status === "Done"}
                                     data-testid={`button-due-done-${d.id}`}
                                   >
+                                    <Check className="mr-2 h-4 w-4" aria-hidden="true" />
                                     Mark done
                                   </Button>
                                 </div>
@@ -1129,7 +1140,7 @@ export default function DashboardPage() {
 
                   <div className="mt-4 flex items-center gap-2">
                     <Button
-                      className="h-9 rounded-full"
+                      className="h-9 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:from-blue-700 hover:to-blue-800"
                       onClick={() => openCompose()}
                       data-testid="button-compose"
                     >
