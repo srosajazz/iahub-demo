@@ -3,6 +3,29 @@ import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { spawn } from "child_process";
+
+// Start Django backend as a child process
+const djangoProcess = spawn("python", ["manage.py", "runserver", "0.0.0.0:8000"], {
+  stdio: ["ignore", "pipe", "pipe"],
+  cwd: process.cwd(),
+});
+
+djangoProcess.stdout?.on("data", (data) => {
+  console.log(`[django] ${data.toString().trim()}`);
+});
+
+djangoProcess.stderr?.on("data", (data) => {
+  console.log(`[django] ${data.toString().trim()}`);
+});
+
+djangoProcess.on("error", (err) => {
+  console.error("[django] Failed to start Django:", err);
+});
+
+process.on("exit", () => {
+  djangoProcess.kill();
+});
 
 const app = express();
 const httpServer = createServer(app);
@@ -12,6 +35,22 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+// Register API proxy FIRST - before any body parsers consume the stream
+import { createProxyMiddleware } from "http-proxy-middleware";
+app.use('/api', createProxyMiddleware({
+  target: 'http://127.0.0.1:8000',
+  changeOrigin: true,
+  pathRewrite: (path) => `/api${path}`,
+  on: {
+    proxyReq: (proxyReq, req) => {
+      console.log(`[proxy] ${req.method} ${req.url} -> ${proxyReq.path}`);
+    },
+    error: (err) => {
+      console.error('[proxy] Error:', err);
+    }
+  }
+}));
 
 app.use(cookieParser());
 app.use(
