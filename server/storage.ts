@@ -43,6 +43,8 @@ export interface IStorage {
   // Donors
   getDonors(): Promise<Donor[]>;
   createDonor(donor: InsertDonor): Promise<Donor>;
+  updateDonor(id: string, updates: Partial<InsertDonor>): Promise<Donor | undefined>;
+  deleteDonor(id: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -116,6 +118,19 @@ export class DbStorage implements IStorage {
   async createDonor(donor: InsertDonor): Promise<Donor> {
     const result = await db.insert(donors).values(donor).returning();
     return result[0];
+  }
+
+  async updateDonor(id: string, updates: Partial<InsertDonor>): Promise<Donor | undefined> {
+    const result = await db
+      .update(donors)
+      .set(updates)
+      .where(eq(donors.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteDonor(id: string): Promise<void> {
+    await db.delete(donors).where(eq(donors.id, id));
   }
 }
 

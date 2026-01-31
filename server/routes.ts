@@ -3,12 +3,29 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertDueItemSchema, insertMessageSchema, insertActionItemSchema, insertDonorSchema } from "@shared/schema";
 
-const VALID_CREDENTIALS = {
-  username: "admin",
-  password: "IAberk26",
-};
+type UserRole = "admin" | "president" | "vice_president" | "staff";
 
-const sessions = new Set<string>();
+interface User {
+  username: string;
+  password: string;
+  role: UserRole;
+  displayName: string;
+}
+
+const USERS: User[] = [
+  { username: "admin", password: "IAberk26", role: "admin", displayName: "Admin User" },
+  { username: "president", password: "IAberk26", role: "president", displayName: "Dr. Erica Muhl" },
+  { username: "vp", password: "IAberk26", role: "vice_president", displayName: "VP of Advancement" },
+  { username: "staff", password: "IAberk26", role: "staff", displayName: "Staff Member" },
+];
+
+interface SessionData {
+  username: string;
+  role: UserRole;
+  displayName: string;
+}
+
+const sessions = new Map<string, SessionData>();
 
 export async function registerRoutes(
   httpServer: Server,
@@ -17,11 +34,12 @@ export async function registerRoutes(
   // Authentication API
   app.post("/api/login", (req, res) => {
     const { username, password } = req.body;
-    if (username === VALID_CREDENTIALS.username && password === VALID_CREDENTIALS.password) {
+    const user = USERS.find(u => u.username === username && u.password === password);
+    if (user) {
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      sessions.add(sessionId);
+      sessions.set(sessionId, { username: user.username, role: user.role, displayName: user.displayName });
       res.cookie("session", sessionId, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
-      res.json({ success: true });
+      res.json({ success: true, role: user.role, displayName: user.displayName });
     } else {
       res.status(401).json({ error: "Invalid credentials" });
     }
@@ -29,8 +47,9 @@ export async function registerRoutes(
 
   app.get("/api/auth/check", (req, res) => {
     const sessionId = req.cookies?.session;
-    if (sessionId && sessions.has(sessionId)) {
-      res.json({ authenticated: true });
+    const sessionData = sessionId ? sessions.get(sessionId) : null;
+    if (sessionData) {
+      res.json({ authenticated: true, role: sessionData.role, displayName: sessionData.displayName });
     } else {
       res.status(401).json({ authenticated: false });
     }
@@ -154,8 +173,28 @@ export async function registerRoutes(
     }
   });
 
-  // Donors API
-  app.get("/api/donors", async (_req, res) => {
+  // Helper to check role authorization
+  function getSessionRole(req: any): UserRole | null {
+    const sessionId = req.cookies?.session;
+    const sessionData = sessionId ? sessions.get(sessionId) : null;
+    return sessionData?.role || null;
+  }
+
+  function canViewDonors(role: UserRole | null): boolean {
+    return role === "admin" || role === "president" || role === "vice_president";
+  }
+
+  function canEditDonors(role: UserRole | null): boolean {
+    return role === "admin";
+  }
+
+  // Donors API - Protected: Only admin, president, vice_president can view
+  app.get("/api/donors", async (req, res) => {
+    const role = getSessionRole(req);
+    if (!canViewDonors(role)) {
+      res.status(403).json({ error: "Access denied. Donor data is restricted to authorized personnel only." });
+      return;
+    }
     try {
       const donorList = await storage.getDonors();
       res.json(donorList);
@@ -166,6 +205,11 @@ export async function registerRoutes(
   });
 
   app.post("/api/donors", async (req, res) => {
+    const role = getSessionRole(req);
+    if (!canEditDonors(role)) {
+      res.status(403).json({ error: "Access denied. Only administrators can create donor records." });
+      return;
+    }
     try {
       const parsed = insertDonorSchema.parse(req.body);
       const donor = await storage.createDonor(parsed);
@@ -173,6 +217,43 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error creating donor:", error);
       res.status(400).json({ error: "Invalid donor data" });
+    }
+  });
+
+  app.patch("/api/donors/:id", async (req, res) => {
+    const role = getSessionRole(req);
+    if (!canEditDonors(role)) {
+      res.status(403).json({ error: "Access denied. Only administrators can edit donor records." });
+      return;
+    }
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const donor = await storage.updateDonor(id, updates);
+      if (!donor) {
+        res.status(404).json({ error: "Donor not found" });
+        return;
+      }
+      res.json(donor);
+    } catch (error) {
+      console.error("Error updating donor:", error);
+      res.status(400).json({ error: "Failed to update donor" });
+    }
+  });
+
+  app.delete("/api/donors/:id", async (req, res) => {
+    const role = getSessionRole(req);
+    if (!canEditDonors(role)) {
+      res.status(403).json({ error: "Access denied. Only administrators can delete donor records." });
+      return;
+    }
+    try {
+      const { id } = req.params;
+      await storage.deleteDonor(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting donor:", error);
+      res.status(500).json({ error: "Failed to delete donor" });
     }
   });
 
