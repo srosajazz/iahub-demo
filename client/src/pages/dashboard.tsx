@@ -42,6 +42,7 @@ import {
   Timer,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type PipelineStage = {
   name: "Discovery" | "Cultivation" | "Solicitation" | "Stewardship";
@@ -70,7 +71,8 @@ type DueItem = {
   owner: string;
   dueAt: string; // ISO string
   status: "Open" | "Done" | "Expired";
-  notes?: string;
+  notes?: string | null;
+  createdAt: string;
 };
 
 type Message = {
@@ -79,6 +81,17 @@ type Message = {
   subject: string;
   body: string;
   createdAt: string;
+};
+
+type ActionItemAPI = {
+  id: string;
+  title: string;
+  why: string;
+  owner: string;
+  horizon: "Now" | "This quarter" | "This year";
+  impact: "High" | "Medium" | "Low";
+  metric: string;
+  isDone: number; // 0 or 1
 };
 
 type DashboardData = {
@@ -179,6 +192,55 @@ function msToCountdown(ms: number) {
   if (days >= 1) return `${days}d ${hours}h`;
   if (hours >= 1) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
+}
+
+// API Functions
+async function fetchDueItems(): Promise<DueItem[]> {
+  const res = await fetch("/api/due-items");
+  if (!res.ok) throw new Error("Failed to fetch due items");
+  return res.json();
+}
+
+async function fetchMessages(): Promise<Message[]> {
+  const res = await fetch("/api/messages");
+  if (!res.ok) throw new Error("Failed to fetch messages");
+  return res.json();
+}
+
+async function fetchActionItems(): Promise<ActionItemAPI[]> {
+  const res = await fetch("/api/action-items");
+  if (!res.ok) throw new Error("Failed to fetch action items");
+  return res.json();
+}
+
+async function createMessage(data: { toTeam: string; subject: string; body: string }): Promise<Message> {
+  const res = await fetch("/api/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create message");
+  return res.json();
+}
+
+async function updateDueItem(id: string, updates: Partial<DueItem>): Promise<DueItem> {
+  const res = await fetch(`/api/due-items/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) throw new Error("Failed to update due item");
+  return res.json();
+}
+
+async function updateActionItemDone(id: string, isDone: boolean): Promise<ActionItemAPI> {
+  const res = await fetch(`/api/action-items/${id}/done`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ isDone }),
+  });
+  if (!res.ok) throw new Error("Failed to update action item");
+  return res.json();
 }
 
 const SYNTHETIC_DASHBOARD: DashboardData = {
@@ -284,32 +346,7 @@ const SYNTHETIC_DASHBOARD: DashboardData = {
       metric: "Duplicate risk % and merge throughput",
     },
   ],
-  due: [
-    {
-      id: "dq-policy",
-      title: "Publish data governance definitions + policy",
-      owner: "Advancement Services",
-      dueAt: new Date(Date.now() + 1000 * 60 * 60 * 30).toISOString(),
-      status: "Open",
-      notes: "Finalize definitions, access rules, and change-control cadence.",
-    },
-    {
-      id: "amplify-brief",
-      title: "Amplify campaign briefing (internal)",
-      owner: "IA",
-      dueAt: new Date(Date.now() + 1000 * 60 * 60 * 90).toISOString(),
-      status: "Open",
-      notes: "Confirm goal framing, segmentation emphasis, and outreach calendar.",
-    },
-    {
-      id: "stewardship-pack",
-      title: "Stewardship touchpoint pack for re-activation",
-      owner: "Stewardship",
-      dueAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-      status: "Open",
-      notes: "Templates + next-best-action cues; validate tone + compliance.",
-    },
-  ],
+  due: [],
   narrative: {
     question1: {
       headline: "Analytics-driven pipeline strengthening",
@@ -336,17 +373,76 @@ const SYNTHETIC_DASHBOARD: DashboardData = {
 
 export default function DashboardPage() {
   const data = SYNTHETIC_DASHBOARD;
+  const queryClient = useQueryClient();
 
-  const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [now, setNow] = useState<number>(() => Date.now());
-
-  const [dueItems, setDueItems] = useState<DueItem[]>(() => data.due);
-
   const [composeOpen, setComposeOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [msgTeam, setMsgTeam] = useState<Message["toTeam"]>("IA");
   const [msgSubject, setMsgSubject] = useState("");
   const [msgBody, setMsgBody] = useState("");
+
+  // Fetch data from API
+  const { data: dueItemsData = [] } = useQuery({
+    queryKey: ["dueItems"],
+    queryFn: fetchDueItems,
+  });
+
+  const { data: messagesData = [] } = useQuery({
+    queryKey: ["messages"],
+    queryFn: fetchMessages,
+  });
+
+  const { data: actionItemsAPI = [] } = useQuery({
+    queryKey: ["actionItems"],
+    queryFn: fetchActionItems,
+  });
+
+  // Mutations
+  const updateDueMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<DueItem> }) =>
+      updateDueItem(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dueItems"] });
+    },
+  });
+
+  const updateActionMutation = useMutation({
+    mutationFn: ({ id, isDone }: { id: string; isDone: boolean }) =>
+      updateActionItemDone(id, isDone),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["actionItems"] });
+    },
+  });
+
+  const createMessageMutation = useMutation({
+    mutationFn: createMessage,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+    },
+  });
+
+  // Convert API action items to UI format
+  const actions = useMemo(() => {
+    return actionItemsAPI.map((item) => ({
+      ...item,
+      isDone: item.isDone === 1,
+    }));
+  }, [actionItemsAPI]);
+
+  const doneIds = useMemo(() => {
+    return new Set(actions.filter((a) => a.isDone).map((a) => a.id));
+  }, [actions]);
+
+  // Compute dueItems with expired status based on current time
+  const dueItems = useMemo(() => {
+    return dueItemsData.map((d) => {
+      if (d.status === "Done") return d;
+      const expired = new Date(d.dueAt).getTime() < now;
+      return expired ? { ...d, status: "Expired" as const } : { ...d, status: "Open" as const };
+    });
+  }, [dueItemsData, now]);
+
+  const messages = messagesData;
 
   const pipelineTotal = useMemo(
     () => data.donorPipeline.reduce((sum, s) => sum + s.count, 0),
@@ -385,16 +481,6 @@ export default function DashboardPage() {
     return () => window.clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    setDueItems((prev) =>
-      prev.map((d) => {
-        if (d.status === "Done") return d;
-        const expired = new Date(d.dueAt).getTime() < now;
-        return expired ? { ...d, status: "Expired" } : { ...d, status: "Open" };
-      }),
-    );
-  }, [now]);
-
   const doneCount = doneIds.size;
   const actionsTotal = data.actions.length;
   const actionsDonePct = actionsTotal > 0 ? doneCount / actionsTotal : 0;
@@ -409,24 +495,27 @@ export default function DashboardPage() {
   );
 
   function toggleDone(id: string) {
-    setDoneIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    const action = actions.find((a) => a.id === id);
+    if (!action) return;
+    updateActionMutation.mutate({ id, isDone: !action.isDone });
   }
 
   function markDueDone(id: string) {
-    setDueItems((prev) => prev.map((d) => (d.id === id ? { ...d, status: "Done" } : d)));
-    toast({
-      title: "Marked as done",
-      description: "This is a mockup interaction (no backend).",
-    });
+    updateDueMutation.mutate(
+      { id, updates: { status: "Done" } },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Marked as done",
+            description: "Due date marked complete.",
+          });
+        },
+      }
+    );
   }
 
   function updateDueAt(id: string, dueAtIso: string) {
-    setDueItems((prev) => prev.map((d) => (d.id === id ? { ...d, dueAt: dueAtIso } : d)));
+    updateDueMutation.mutate({ id, updates: { dueAt: dueAtIso } });
   }
 
   function openCompose(prefill?: Partial<Pick<Message, "toTeam" | "subject" | "body">>) {
@@ -446,23 +535,24 @@ export default function DashboardPage() {
       return;
     }
 
-    const m: Message = {
-      id: `m-${Date.now()}`,
-      toTeam: msgTeam,
-      subject: msgSubject.trim(),
-      body: msgBody.trim(),
-      createdAt: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [m, ...prev]);
-    setComposeOpen(false);
-    setMsgSubject("");
-    setMsgBody("");
-
-    toast({
-      title: "Message queued",
-      description: "Saved locally for this session (mockup).",
-    });
+    createMessageMutation.mutate(
+      {
+        toTeam: msgTeam,
+        subject: msgSubject.trim(),
+        body: msgBody.trim(),
+      },
+      {
+        onSuccess: () => {
+          setComposeOpen(false);
+          setMsgSubject("");
+          setMsgBody("");
+          toast({
+            title: "Message sent",
+            description: "Your message has been saved to the team inbox.",
+          });
+        },
+      }
+    );
   }
 
   return (
@@ -661,7 +751,11 @@ export default function DashboardPage() {
                     <Button
                       variant="secondary"
                       className="h-9 rounded-full"
-                      onClick={() => setDoneIds(new Set())}
+                      onClick={() => {
+                        actions.filter(a => a.isDone).forEach(a => {
+                          updateActionMutation.mutate({ id: a.id, isDone: false });
+                        });
+                      }}
                       data-testid="button-reset-actions"
                     >
                       Reset
