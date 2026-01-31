@@ -71,6 +71,7 @@ export const donors = pgTable("donors", {
   phone: text("phone"),
   city: text("city"),
   state: text("state"),
+  imageUrl: text("image_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 
