@@ -65,24 +65,26 @@ export default function LoginPage() {
             Giving Day 2026
           </h1>
           <div className="flex items-center justify-center gap-4 mt-12">
-            <div className="flex items-center gap-2 text-sm" style={{ color: "#3D3D3D" }}>
-              <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
-                <path d="M3 3h18v18H3V3zm16 16V5H5v14h14z"/>
+            <div className="flex items-center gap-2" style={{ color: "#3D3D3D" }}>
+              <svg viewBox="0 0 32 32" className="w-8 h-8" fill="currentColor">
+                <rect x="2" y="2" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2"/>
+                <path d="M8 8h6v16h-6v-16z M18 8h6v8h-6v-8z" fill="currentColor"/>
               </svg>
               <div className="text-left">
-                <div className="font-bold">Berklee</div>
-                <div className="text-xs">College of Music</div>
+                <div className="font-bold text-sm tracking-wide">Berklee</div>
+                <div className="text-[10px] tracking-wide">College of Music</div>
               </div>
             </div>
-            <div className="w-px h-8" style={{ backgroundColor: "#3D3D3D" }} />
-            <div className="flex items-center gap-2 text-sm" style={{ color: "#3D3D3D" }}>
-              <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <div className="w-px h-10" style={{ backgroundColor: "#3D3D3D", opacity: 0.5 }} />
+            <div className="flex items-center gap-2" style={{ color: "#3D3D3D" }}>
+              <svg viewBox="0 0 32 32" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="16" cy="16" r="12"/>
+                <path d="M16 4 C16 4 22 10 22 16 C22 22 16 28 16 28 C16 28 10 22 10 16 C10 10 16 4 16 4" fill="currentColor" stroke="none"/>
               </svg>
               <div className="text-left">
-                <div className="font-bold">BOSTON</div>
-                <div className="text-xs">CONSERVATORY</div>
-                <div className="text-[10px]">at Berklee</div>
+                <div className="font-bold text-sm tracking-widest">BOSTON</div>
+                <div className="text-[9px] tracking-widest">CONSERVATORY</div>
+                <div className="text-[8px] tracking-wide">at Berklee</div>
               </div>
             </div>
           </div>
