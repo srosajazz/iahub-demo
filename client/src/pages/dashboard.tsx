@@ -1,9 +1,20 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ResponsiveContainer,
   BarChart,
@@ -19,14 +30,18 @@ import {
 } from "recharts";
 import {
   ArrowRight,
+  Bell,
+  CalendarClock,
   Check,
   ClipboardList,
   Database,
   Flag,
+  Mail,
   Radar,
   Sparkles,
   Timer,
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 type PipelineStage = {
   name: "Discovery" | "Cultivation" | "Solicitation" | "Stewardship";
@@ -47,6 +62,23 @@ type ActionItem = {
   horizon: "Now" | "This quarter" | "This year";
   impact: "High" | "Medium" | "Low";
   metric: string;
+};
+
+type DueItem = {
+  id: string;
+  title: string;
+  owner: string;
+  dueAt: string; // ISO string
+  status: "Open" | "Done" | "Expired";
+  notes?: string;
+};
+
+type Message = {
+  id: string;
+  toTeam: "Advancement Services" | "Alumni Affairs" | "Annual Giving" | "CFR" | "Stewardship" | "IA";
+  subject: string;
+  body: string;
+  createdAt: string;
 };
 
 type DashboardData = {
@@ -86,6 +118,7 @@ type DashboardData = {
     technology: string[];
   };
   actions: ActionItem[];
+  due: DueItem[];
   narrative: {
     question1: {
       headline: string;
@@ -111,6 +144,41 @@ function formatPercent(n: number) {
 
 function clampPct(n: number) {
   return Math.max(0, Math.min(1, n));
+}
+
+function formatDateTimeLocalDisplay(iso: string) {
+  const d = new Date(iso);
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+function toDatetimeLocalValue(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromDatetimeLocalValue(v: string) {
+  // v is "YYYY-MM-DDTHH:mm" in local time; Date() parses as local.
+  const d = new Date(v);
+  return d.toISOString();
+}
+
+function msToCountdown(ms: number) {
+  const abs = Math.abs(ms);
+  const totalSeconds = Math.floor(abs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  if (days >= 1) return `${days}d ${hours}h`;
+  if (hours >= 1) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
 
 const SYNTHETIC_DASHBOARD: DashboardData = {
@@ -216,6 +284,32 @@ const SYNTHETIC_DASHBOARD: DashboardData = {
       metric: "Duplicate risk % and merge throughput",
     },
   ],
+  due: [
+    {
+      id: "dq-policy",
+      title: "Publish data governance definitions + policy",
+      owner: "Advancement Services",
+      dueAt: new Date(Date.now() + 1000 * 60 * 60 * 30).toISOString(),
+      status: "Open",
+      notes: "Finalize definitions, access rules, and change-control cadence.",
+    },
+    {
+      id: "amplify-brief",
+      title: "Amplify campaign briefing (internal)",
+      owner: "IA",
+      dueAt: new Date(Date.now() + 1000 * 60 * 60 * 90).toISOString(),
+      status: "Open",
+      notes: "Confirm goal framing, segmentation emphasis, and outreach calendar.",
+    },
+    {
+      id: "stewardship-pack",
+      title: "Stewardship touchpoint pack for re-activation",
+      owner: "Stewardship",
+      dueAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+      status: "Open",
+      notes: "Templates + next-best-action cues; validate tone + compliance.",
+    },
+  ],
   narrative: {
     question1: {
       headline: "Analytics-driven pipeline strengthening",
@@ -242,7 +336,17 @@ const SYNTHETIC_DASHBOARD: DashboardData = {
 
 export default function DashboardPage() {
   const data = SYNTHETIC_DASHBOARD;
+
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
+  const [now, setNow] = useState<number>(() => Date.now());
+
+  const [dueItems, setDueItems] = useState<DueItem[]>(() => data.due);
+
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [msgTeam, setMsgTeam] = useState<Message["toTeam"]>("IA");
+  const [msgSubject, setMsgSubject] = useState("");
+  const [msgBody, setMsgBody] = useState("");
 
   const pipelineTotal = useMemo(
     () => data.donorPipeline.reduce((sum, s) => sum + s.count, 0),
@@ -276,9 +380,33 @@ export default function DashboardPage() {
     },
   ];
 
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    setDueItems((prev) =>
+      prev.map((d) => {
+        if (d.status === "Done") return d;
+        const expired = new Date(d.dueAt).getTime() < now;
+        return expired ? { ...d, status: "Expired" } : { ...d, status: "Open" };
+      }),
+    );
+  }, [now]);
+
   const doneCount = doneIds.size;
   const actionsTotal = data.actions.length;
   const actionsDonePct = actionsTotal > 0 ? doneCount / actionsTotal : 0;
+
+  const openDueCount = useMemo(
+    () => dueItems.filter((d) => d.status === "Open").length,
+    [dueItems],
+  );
+  const expiredDueCount = useMemo(
+    () => dueItems.filter((d) => d.status === "Expired").length,
+    [dueItems],
+  );
 
   function toggleDone(id: string) {
     setDoneIds((prev) => {
@@ -286,6 +414,54 @@ export default function DashboardPage() {
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
+    });
+  }
+
+  function markDueDone(id: string) {
+    setDueItems((prev) => prev.map((d) => (d.id === id ? { ...d, status: "Done" } : d)));
+    toast({
+      title: "Marked as done",
+      description: "This is a mockup interaction (no backend).",
+    });
+  }
+
+  function updateDueAt(id: string, dueAtIso: string) {
+    setDueItems((prev) => prev.map((d) => (d.id === id ? { ...d, dueAt: dueAtIso } : d)));
+  }
+
+  function openCompose(prefill?: Partial<Pick<Message, "toTeam" | "subject" | "body">>) {
+    if (prefill?.toTeam) setMsgTeam(prefill.toTeam);
+    if (prefill?.subject) setMsgSubject(prefill.subject);
+    if (prefill?.body) setMsgBody(prefill.body);
+    setComposeOpen(true);
+  }
+
+  function sendMessage() {
+    if (!msgSubject.trim() || !msgBody.trim()) {
+      toast({
+        title: "Missing details",
+        description: "Please add a subject and message.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const m: Message = {
+      id: `m-${Date.now()}`,
+      toTeam: msgTeam,
+      subject: msgSubject.trim(),
+      body: msgBody.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [m, ...prev]);
+    setComposeOpen(false);
+    setMsgSubject("");
+    setMsgBody("");
+
+    toast({
+      title: "Message queued",
+      description: "Saved locally for this session (mockup).",
     });
   }
 
@@ -313,18 +489,59 @@ export default function DashboardPage() {
                 className="text-sm text-muted-foreground md:text-[15px]"
                 data-testid="text-subtitle"
               >
-                Institutional Advancement dashboard hub: pipeline visibility, campaign pacing, engagement opportunity, and data-quality signals—designed for executive decision cadence.
+                Institutional Advancement dashboard hub: pipeline visibility, campaign pacing, engagement
+                opportunity, and data-quality signals—designed for executive decision cadence.
               </p>
             </div>
 
-            <div className="flex items-center gap-2" data-testid="group-asof">
-              <span className="text-xs text-muted-foreground" data-testid="text-asof-label">
-                {data.campaign.asOfLabel}
-              </span>
-              <Separator orientation="vertical" className="h-4" />
-              <span className="text-xs" data-testid="text-records-note">
-                Synthetic indicators only
-              </span>
+            <div className="flex flex-col items-start gap-2 md:items-end">
+              <div className="flex items-center gap-2" data-testid="group-asof">
+                <span
+                  className="text-xs text-muted-foreground"
+                  data-testid="text-asof-label"
+                >
+                  {data.campaign.asOfLabel}
+                </span>
+                <Separator orientation="vertical" className="h-4" />
+                <span className="text-xs" data-testid="text-records-note">
+                  Synthetic indicators only
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2" data-testid="group-alerts">
+                <Badge
+                  variant="secondary"
+                  className="rounded-full"
+                  data-testid="badge-due-open"
+                >
+                  <Bell className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                  {openDueCount} due
+                </Badge>
+                <Badge
+                  variant="secondary"
+                  className={`rounded-full ${
+                    expiredDueCount > 0 ? "bg-red-500/15 text-foreground" : ""
+                  }`}
+                  data-testid="badge-due-expired"
+                >
+                  <CalendarClock className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                  {expiredDueCount} expired
+                </Badge>
+
+                <Button
+                  variant="secondary"
+                  className="h-8 rounded-full"
+                  onClick={() => openCompose({
+                    toTeam: "IA",
+                    subject: "IAHub follow-up: due items + next steps",
+                    body: "Sharing current due items and asking for owners / next-best actions.\n\n- Item: ...\n- Owner: ...\n- Due: ...\n\nReply with updates / blockers.",
+                  })}
+                  data-testid="button-compose-header"
+                >
+                  <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Message IA team
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -404,6 +621,13 @@ export default function DashboardPage() {
           >
             <TabsTrigger value="act" className="rounded-lg text-xs md:text-sm" data-testid="tab-act">
               Act now
+            </TabsTrigger>
+            <TabsTrigger
+              value="due"
+              className="rounded-lg text-xs md:text-sm"
+              data-testid="tab-due"
+            >
+              Due dates
             </TabsTrigger>
             <TabsTrigger
               value="dashboard"
@@ -645,6 +869,268 @@ export default function DashboardPage() {
             </div>
           </TabsContent>
 
+          <TabsContent value="due" className="mt-4" data-testid="tabcontent-due">
+            <div className="grid gap-4 md:grid-cols-12">
+              <Card className="md:col-span-7 overflow-hidden border-border/70 bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/55">
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-sm font-medium" data-testid="text-due-title">
+                        Due dates & countdown
+                      </h2>
+                      <p className="text-xs text-muted-foreground" data-testid="text-due-subtitle">
+                        Add explicit due dates and track time remaining. Items automatically flip to “Expired”.
+                      </p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      className="h-9 rounded-full"
+                      onClick={() =>
+                        openCompose({
+                          toTeam: "IA",
+                          subject: "Reminder: upcoming IAHub due dates",
+                          body: "Sharing upcoming due items from IAHub. Please confirm owners + status.\n\n- ...",
+                        })
+                      }
+                      data-testid="button-message-from-due"
+                    >
+                      <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Notify team
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 space-y-3" data-testid="list-due">
+                    {dueItems
+                      .slice()
+                      .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
+                      .map((d, idx) => {
+                        const dueMs = new Date(d.dueAt).getTime() - now;
+                        const isExpired = d.status === "Expired";
+                        const isDone = d.status === "Done";
+                        const tone = isDone
+                          ? "border-emerald-500/30 bg-emerald-500/5"
+                          : isExpired
+                            ? "border-red-500/30 bg-red-500/5"
+                            : "border-border/70 bg-background/55";
+
+                        return (
+                          <div
+                            key={d.id}
+                            className={`rounded-xl border p-4 ${tone}`}
+                            data-testid={`card-due-${d.id}`}
+                          >
+                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div
+                                    className="text-sm font-semibold"
+                                    data-testid={`text-due-title-${d.id}`}
+                                  >
+                                    {d.title}
+                                  </div>
+                                  <Badge
+                                    variant="secondary"
+                                    className="rounded-full"
+                                    data-testid={`badge-due-owner-${d.id}`}
+                                  >
+                                    {d.owner}
+                                  </Badge>
+                                  <Badge
+                                    variant="secondary"
+                                    className={`rounded-full ${
+                                      isDone
+                                        ? "bg-emerald-500/15 text-foreground"
+                                        : isExpired
+                                          ? "bg-red-500/15 text-foreground"
+                                          : ""
+                                    }`}
+                                    data-testid={`badge-due-status-${d.id}`}
+                                  >
+                                    {d.status}
+                                  </Badge>
+                                </div>
+
+                                <div className="mt-1 text-xs text-muted-foreground" data-testid={`text-due-datetime-${d.id}`}>
+                                  Due: {formatDateTimeLocalDisplay(d.dueAt)}
+                                </div>
+
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                                  <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1">
+                                    <CalendarClock className="h-4 w-4" aria-hidden="true" />
+                                    <span data-testid={`text-due-countdown-${d.id}`}>
+                                      {isDone
+                                        ? "Completed"
+                                        : isExpired
+                                          ? `Expired ${msToCountdown(dueMs)} ago`
+                                          : `${msToCountdown(dueMs)} remaining`}
+                                    </span>
+                                  </span>
+                                </div>
+
+                                {d.notes ? (
+                                  <div className="mt-2 text-xs text-muted-foreground" data-testid={`text-due-notes-${d.id}`}>
+                                    {d.notes}
+                                  </div>
+                                ) : null}
+                              </div>
+
+                              <div className="flex flex-col gap-2 md:items-end">
+                                <div className="grid gap-2">
+                                  <Label className="text-xs text-muted-foreground" htmlFor={`input-due-${d.id}`}>
+                                    Change due date
+                                  </Label>
+                                  <Input
+                                    id={`input-due-${d.id}`}
+                                    type="datetime-local"
+                                    value={toDatetimeLocalValue(d.dueAt)}
+                                    onChange={(e) => updateDueAt(d.id, fromDatetimeLocalValue(e.target.value))}
+                                    className="h-9"
+                                    data-testid={`input-due-${d.id}`}
+                                  />
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="secondary"
+                                    className="h-9 rounded-full"
+                                    onClick={() =>
+                                      openCompose({
+                                        toTeam: "IA",
+                                        subject: `Due item: ${d.title}`,
+                                        body: `Sharing due item from IAHub.\n\nTitle: ${d.title}\nOwner: ${d.owner}\nDue: ${formatDateTimeLocalDisplay(d.dueAt)}\nStatus: ${d.status}\n\nUpdate requested: Please confirm status, blockers, and next steps.`,
+                                      })
+                                    }
+                                    data-testid={`button-message-due-${d.id}`}
+                                  >
+                                    <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
+                                    Message
+                                  </Button>
+
+                                  <Button
+                                    className="h-9 rounded-full"
+                                    onClick={() => markDueDone(d.id)}
+                                    disabled={d.status === "Done"}
+                                    data-testid={`button-due-done-${d.id}`}
+                                  >
+                                    Mark done
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="md:col-span-5 overflow-hidden border-border/70 bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/55">
+                <div className="p-5">
+                  <h2 className="text-sm font-medium" data-testid="text-comms-title">
+                    Team messages (mockup)
+                  </h2>
+                  <p className="text-xs text-muted-foreground" data-testid="text-comms-subtitle">
+                    Compose and track messages to IA teams. Stored in memory only (no real sending).
+                  </p>
+
+                  <div className="mt-4 flex items-center gap-2">
+                    <Button
+                      className="h-9 rounded-full"
+                      onClick={() => openCompose()}
+                      data-testid="button-compose"
+                    >
+                      <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
+                      New message
+                    </Button>
+                    <Badge variant="secondary" className="rounded-full" data-testid="badge-messages-count">
+                      {messages.length} drafts
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 space-y-3" data-testid="list-messages">
+                    {messages.length === 0 ? (
+                      <div
+                        className="rounded-xl border border-border/70 bg-background/55 p-4 text-sm text-muted-foreground"
+                        data-testid="empty-messages"
+                      >
+                        No messages yet. Use “New message” to draft a note to an IA team.
+                      </div>
+                    ) : (
+                      messages.map((m, i) => (
+                        <div
+                          key={m.id}
+                          className="rounded-xl border border-border/70 bg-background/55 p-4"
+                          data-testid={`card-message-${m.id}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge
+                                  variant="secondary"
+                                  className="rounded-full"
+                                  data-testid={`badge-message-team-${m.id}`}
+                                >
+                                  {m.toTeam}
+                                </Badge>
+                                <div
+                                  className="text-sm font-semibold"
+                                  data-testid={`text-message-subject-${m.id}`}
+                                >
+                                  {m.subject}
+                                </div>
+                              </div>
+                              <div
+                                className="mt-1 text-xs text-muted-foreground"
+                                data-testid={`text-message-date-${m.id}`}
+                              >
+                                {formatDateTimeLocalDisplay(m.createdAt)}
+                              </div>
+                              <div
+                                className="mt-2 text-sm text-muted-foreground"
+                                data-testid={`text-message-body-${m.id}`}
+                              >
+                                {m.body}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="secondary"
+                                className="h-9 rounded-full"
+                                onClick={() =>
+                                  openCompose({
+                                    toTeam: m.toTeam,
+                                    subject: m.subject,
+                                    body: m.body,
+                                  })
+                                }
+                                data-testid={`button-message-edit-${m.id}`}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                className="h-9 rounded-full"
+                                onClick={() => {
+                                  toast({
+                                    title: "Sent (mockup)",
+                                    description: "In a real app, this would notify the team via email/Slack.",
+                                  });
+                                }}
+                                data-testid={`button-message-send-${m.id}`}
+                              >
+                                Send
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
+
           <TabsContent value="dashboard" className="mt-4" data-testid="tabcontent-dashboard">
             <div className="grid gap-4 md:grid-cols-12">
               <Card className="md:col-span-7 overflow-hidden border-border/70 bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/55">
@@ -655,10 +1141,14 @@ export default function DashboardPage() {
                         Donor pipeline stages
                       </h2>
                       <p className="text-xs text-muted-foreground" data-testid="text-pipeline-subtitle">
-                        Illustrative counts by stage; used to discuss staffing, handoffs, and next-best actions.
+                        Illustrative counts by stage; used to discuss staffing, handoffs, and next-best
+                        actions.
                       </p>
                     </div>
-                    <div className="rounded-full bg-secondary px-3 py-1 text-xs" data-testid="text-pipeline-total">
+                    <div
+                      className="rounded-full bg-secondary px-3 py-1 text-xs"
+                      data-testid="text-pipeline-total"
+                    >
                       Total: {formatCompact(pipelineTotal)}
                     </div>
                   </div>
@@ -696,7 +1186,11 @@ export default function DashboardPage() {
                         />
                         <Bar dataKey="count" radius={[12, 12, 12, 12]}>
                           {data.donorPipeline.map((stage) => (
-                            <Cell key={stage.name} fill={pipelineColors[stage.name]} opacity={0.92} />
+                            <Cell
+                              key={stage.name}
+                              fill={pipelineColors[stage.name]}
+                              opacity={0.92}
+                            />
                           ))}
                           <LabelList
                             dataKey="count"
@@ -970,8 +1464,8 @@ export default function DashboardPage() {
                     data-testid="panel-quality-note"
                   >
                     <div className="text-xs text-muted-foreground">
-                      These indicators are intentionally simplified to support governance-aware discussion (e.g.,
-                      stewardship confidence, dedupe work, and capacity modeling).
+                      These indicators are intentionally simplified to support governance-aware discussion
+                      (e.g., stewardship confidence, dedupe work, and capacity modeling).
                     </div>
                   </div>
                 </div>
@@ -1004,7 +1498,10 @@ export default function DashboardPage() {
                     <ul className="mt-3 space-y-2 text-sm text-muted-foreground" data-testid="list-q1-bullets">
                       {data.narrative.question1.bullets.map((b, i) => (
                         <li key={i} className="flex gap-2" data-testid={`row-q1-${i}`}>
-                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/40" aria-hidden="true" />
+                          <span
+                            className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/40"
+                            aria-hidden="true"
+                          />
                           <span data-testid={`text-q1-bullet-${i}`}>{b}</span>
                         </li>
                       ))}
@@ -1016,7 +1513,10 @@ export default function DashboardPage() {
                     <ul className="mt-3 space-y-2 text-sm text-muted-foreground" data-testid="list-challenges">
                       {data.strategy.challenges.map((c, i) => (
                         <li key={i} className="flex gap-2" data-testid={`row-challenge-${i}`}>
-                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/40" aria-hidden="true" />
+                          <span
+                            className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/40"
+                            aria-hidden="true"
+                          />
                           <span data-testid={`text-challenge-${i}`}>{c}</span>
                         </li>
                       ))}
@@ -1030,10 +1530,11 @@ export default function DashboardPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-medium" data-testid="text-q3-title">
-                        Prompt 3: How to strengthen Advancement Services
+                        Prompt 3: How to strengthen Institutional Advancement
                       </h2>
                       <p className="text-xs text-muted-foreground" data-testid="text-q3-subtitle">
-                        Data strategy themes: governance, CRM hygiene, reporting cadence, and cross-functional trust.
+                        Data strategy themes: governance, CRM hygiene, reporting cadence, and cross-functional
+                        trust.
                       </p>
                     </div>
                     <Badge variant="secondary" className="rounded-full" data-testid="badge-q3">
@@ -1048,7 +1549,10 @@ export default function DashboardPage() {
                     <ul className="mt-3 space-y-2 text-sm text-muted-foreground" data-testid="list-q3-bullets">
                       {data.narrative.question3.bullets.map((b, i) => (
                         <li key={i} className="flex gap-2" data-testid={`row-q3-${i}`}>
-                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/40" aria-hidden="true" />
+                          <span
+                            className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/40"
+                            aria-hidden="true"
+                          />
                           <span data-testid={`text-q3-bullet-${i}`}>{b}</span>
                         </li>
                       ))}
@@ -1067,8 +1571,14 @@ export default function DashboardPage() {
                           className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-card/60 px-3 py-2"
                           data-testid={`row-partner-${i}`}
                         >
-                          <div className="text-sm" data-testid={`text-partner-${i}`}>{p}</div>
-                          <Badge variant="secondary" className="rounded-full" data-testid={`badge-partner-${i}`}>
+                          <div className="text-sm" data-testid={`text-partner-${i}`}>
+                            {p}
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className="rounded-full"
+                            data-testid={`badge-partner-${i}`}
+                          >
                             Partner
                           </Badge>
                         </div>
@@ -1085,10 +1595,15 @@ export default function DashboardPage() {
                           className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/60 px-3 py-2"
                           data-testid={`row-tech-${i}`}
                         >
-                          <span className="grid h-7 w-7 place-items-center rounded-lg bg-secondary" aria-hidden="true">
+                          <span
+                            className="grid h-7 w-7 place-items-center rounded-lg bg-secondary"
+                            aria-hidden="true"
+                          >
                             <Sparkles className="h-4 w-4" />
                           </span>
-                          <div className="text-sm" data-testid={`text-tech-${i}`}>{t}</div>
+                          <div className="text-sm" data-testid={`text-tech-${i}`}>
+                            {t}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1099,6 +1614,85 @@ export default function DashboardPage() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
+        <DialogContent className="border-border/70 bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70">
+          <DialogHeader>
+            <DialogTitle data-testid="text-compose-title">Message the IA team (mockup)</DialogTitle>
+            <DialogDescription data-testid="text-compose-subtitle">
+              This prototype stores messages in memory only. In a real build, this would send via email,
+              Slack, or a ticketing workflow.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="select-team" className="text-sm" data-testid="label-team">
+                Team
+              </Label>
+              <select
+                id="select-team"
+                value={msgTeam}
+                onChange={(e) => setMsgTeam(e.target.value as Message["toTeam"])}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                data-testid="select-team"
+              >
+                <option value="IA">Institutional Advancement (IA)</option>
+                <option value="Advancement Services">Advancement Services</option>
+                <option value="Alumni Affairs">Alumni Affairs</option>
+                <option value="Annual Giving">Annual Giving</option>
+                <option value="CFR">Corporate & Foundation Relations</option>
+                <option value="Stewardship">Stewardship & Donor Relations</option>
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="input-subject" className="text-sm" data-testid="label-subject">
+                Subject
+              </Label>
+              <Input
+                id="input-subject"
+                value={msgSubject}
+                onChange={(e) => setMsgSubject(e.target.value)}
+                placeholder="e.g., Due items needing owner confirmation"
+                data-testid="input-subject"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="input-body" className="text-sm" data-testid="label-body">
+                Message
+              </Label>
+              <Textarea
+                id="input-body"
+                value={msgBody}
+                onChange={(e) => setMsgBody(e.target.value)}
+                placeholder="Write a short update request, ask for blockers, and propose next steps…"
+                className="min-h-[120px]"
+                data-testid="input-body"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              className="rounded-full"
+              onClick={() => setComposeOpen(false)}
+              data-testid="button-cancel-message"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="rounded-full"
+              onClick={sendMessage}
+              data-testid="button-send-message"
+            >
+              Send (mockup)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
