@@ -45,6 +45,7 @@ import {
   Database,
   Edit,
   Flag,
+  LogOut,
   Mail,
   Plus,
   Radar,
@@ -832,6 +833,19 @@ export default function DashboardPage() {
                 >
                   {role === "admin" ? "Admin" : role === "president" ? "President" : role === "vice_president" ? "VP" : "Staff"}
                 </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 rounded-full px-3"
+                  onClick={async () => {
+                    await fetch("/api/logout", { method: "POST", credentials: "include" });
+                    window.location.href = "/";
+                  }}
+                  data-testid="button-logout"
+                >
+                  <LogOut className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  Logout
+                </Button>
               </div>
             </div>
           </div>
