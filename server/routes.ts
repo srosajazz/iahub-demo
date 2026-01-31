@@ -3,10 +3,48 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertDueItemSchema, insertMessageSchema, insertActionItemSchema } from "@shared/schema";
 
+const VALID_CREDENTIALS = {
+  username: "admin",
+  password: "IAberk26",
+};
+
+const sessions = new Set<string>();
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Authentication API
+  app.post("/api/login", (req, res) => {
+    const { username, password } = req.body;
+    if (username === VALID_CREDENTIALS.username && password === VALID_CREDENTIALS.password) {
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      sessions.add(sessionId);
+      res.cookie("session", sessionId, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
+      res.json({ success: true });
+    } else {
+      res.status(401).json({ error: "Invalid credentials" });
+    }
+  });
+
+  app.get("/api/auth/check", (req, res) => {
+    const sessionId = req.cookies?.session;
+    if (sessionId && sessions.has(sessionId)) {
+      res.json({ authenticated: true });
+    } else {
+      res.status(401).json({ authenticated: false });
+    }
+  });
+
+  app.post("/api/logout", (req, res) => {
+    const sessionId = req.cookies?.session;
+    if (sessionId) {
+      sessions.delete(sessionId);
+    }
+    res.clearCookie("session");
+    res.json({ success: true });
+  });
+
   // Due Items API
   app.get("/api/due-items", async (_req, res) => {
     try {
