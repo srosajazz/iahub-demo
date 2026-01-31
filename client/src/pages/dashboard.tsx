@@ -228,7 +228,7 @@ const SYNTHETIC_DASHBOARD: DashboardData = {
       ],
     },
     question3: {
-      headline: "Advancement Services data strategy (campaign readiness)",
+      headline: "Institutional Advancement data strategy (campaign readiness)",
       bullets: [
         "Govern definitions, policies, and role-based access (trust + compliance)",
         "Modernize reporting: fewer dashboards, clearer decisions, consistent cadence",
@@ -307,14 +307,13 @@ export default function DashboardPage() {
                 className="font-serif text-3xl leading-tight tracking-[-0.02em] md:text-4xl"
                 data-testid="text-title"
               >
-                Advancement Services Dashboard
+                IAHub
               </h1>
               <p
                 className="text-sm text-muted-foreground md:text-[15px]"
                 data-testid="text-subtitle"
               >
-                Conceptual view of pipeline flow, campaign outlook, engagement opportunity, and data
-                quality signals.
+                Institutional Advancement dashboard hub: pipeline visibility, campaign pacing, engagement opportunity, and data-quality signals—designed for executive decision cadence.
               </p>
             </div>
 
@@ -342,7 +341,7 @@ export default function DashboardPage() {
                         Top actions
                       </div>
                       <div className="text-xs text-muted-foreground" data-testid="text-actions-subtitle">
-                        A short, practical list pulled from the prompts.
+                        A short, practical list aligned to IA priorities and campaign readiness.
                       </div>
                     </div>
                   </div>
