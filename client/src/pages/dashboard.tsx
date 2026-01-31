@@ -16,6 +16,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -36,16 +43,21 @@ import {
   Check,
   ClipboardList,
   Database,
+  Edit,
   Flag,
   Mail,
+  Plus,
   Radar,
+  Shield,
   Sparkles,
   Timer,
+  Trash2,
   User,
   Users,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth, type UserRole } from "@/App";
 
 type PipelineStage = {
   name: "Discovery" | "Cultivation" | "Solicitation" | "Stewardship";
@@ -266,8 +278,41 @@ async function updateActionItemDone(id: string, isDone: boolean): Promise<Action
 
 async function fetchDonors(): Promise<Donor[]> {
   const res = await fetch("/api/donors", { credentials: "include" });
-  if (!res.ok) throw new Error("Failed to fetch donors");
+  if (!res.ok) {
+    if (res.status === 403) return [];
+    throw new Error("Failed to fetch donors");
+  }
   return res.json();
+}
+
+async function createDonor(data: Omit<Donor, "id" | "createdAt">): Promise<Donor> {
+  const res = await fetch("/api/donors", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to create donor");
+  return res.json();
+}
+
+async function updateDonor(id: string, updates: Partial<Donor>): Promise<Donor> {
+  const res = await fetch(`/api/donors/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to update donor");
+  return res.json();
+}
+
+async function deleteDonor(id: string): Promise<void> {
+  const res = await fetch(`/api/donors/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to delete donor");
 }
 
 const SYNTHETIC_DASHBOARD: DashboardData = {
@@ -401,12 +446,32 @@ const SYNTHETIC_DASHBOARD: DashboardData = {
 export default function DashboardPage() {
   const data = SYNTHETIC_DASHBOARD;
   const queryClient = useQueryClient();
+  const { role, displayName } = useAuth();
+
+  const canViewDonors = role === "admin" || role === "president" || role === "vice_president";
+  const canEditDonors = role === "admin";
 
   const [now, setNow] = useState<number>(() => Date.now());
   const [composeOpen, setComposeOpen] = useState(false);
   const [msgTeam, setMsgTeam] = useState<Message["toTeam"]>("IA");
   const [msgSubject, setMsgSubject] = useState("");
   const [msgBody, setMsgBody] = useState("");
+
+  // Donor CRUD state
+  const [donorDialogOpen, setDonorDialogOpen] = useState(false);
+  const [editingDonor, setEditingDonor] = useState<Donor | null>(null);
+  const [donorForm, setDonorForm] = useState({
+    name: "",
+    type: "Individual" as "Individual" | "Corporation" | "Foundation",
+    organization: "",
+    totalGiven: "",
+    lastGiftDate: "",
+    lastGiftAmount: "",
+    email: "",
+    phone: "",
+    city: "",
+    state: "",
+  });
 
   // Fetch data from API
   const { data: dueItemsData = [] } = useQuery({
@@ -452,6 +517,93 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
     },
   });
+
+  const createDonorMutation = useMutation({
+    mutationFn: createDonor,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["donors"] });
+      toast({ title: "Donor added", description: "New donor record created successfully." });
+    },
+  });
+
+  const updateDonorMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Donor> }) =>
+      updateDonor(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["donors"] });
+      toast({ title: "Donor updated", description: "Donor record updated successfully." });
+    },
+  });
+
+  const deleteDonorMutation = useMutation({
+    mutationFn: deleteDonor,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["donors"] });
+      toast({ title: "Donor deleted", description: "Donor record removed successfully." });
+    },
+  });
+
+  function openAddDonor() {
+    setEditingDonor(null);
+    setDonorForm({
+      name: "",
+      type: "Individual",
+      organization: "",
+      totalGiven: "",
+      lastGiftDate: new Date().toISOString().split("T")[0],
+      lastGiftAmount: "",
+      email: "",
+      phone: "",
+      city: "",
+      state: "",
+    });
+    setDonorDialogOpen(true);
+  }
+
+  function openEditDonor(donor: Donor) {
+    setEditingDonor(donor);
+    setDonorForm({
+      name: donor.name,
+      type: donor.type,
+      organization: donor.organization || "",
+      totalGiven: donor.totalGiven,
+      lastGiftDate: donor.lastGiftDate.split("T")[0],
+      lastGiftAmount: donor.lastGiftAmount,
+      email: donor.email || "",
+      phone: donor.phone || "",
+      city: donor.city || "",
+      state: donor.state || "",
+    });
+    setDonorDialogOpen(true);
+  }
+
+  function saveDonor() {
+    const donorData = {
+      name: donorForm.name,
+      type: donorForm.type,
+      organization: donorForm.organization || null,
+      totalGiven: donorForm.totalGiven,
+      lastGiftDate: donorForm.lastGiftDate,
+      lastGiftAmount: donorForm.lastGiftAmount,
+      email: donorForm.email || null,
+      phone: donorForm.phone || null,
+      city: donorForm.city || null,
+      state: donorForm.state || null,
+    };
+
+    if (editingDonor) {
+      updateDonorMutation.mutate({ id: editingDonor.id, updates: donorData });
+    } else {
+      createDonorMutation.mutate(donorData as any);
+    }
+    setDonorDialogOpen(false);
+  }
+
+  function confirmDeleteDonor(id: string) {
+    if (confirm("Are you sure you want to delete this donor? This action cannot be undone.")) {
+      deleteDonorMutation.mutate(id);
+    }
+  }
 
   // Convert API action items to UI format
   const actions = useMemo(() => {
@@ -663,6 +815,24 @@ export default function DashboardPage() {
                   Message IA team
                 </Button>
               </div>
+
+              <div className="flex items-center gap-2 mt-2 md:mt-0">
+                <Badge 
+                  variant="outline" 
+                  className="rounded-full px-3 py-1"
+                  data-testid="badge-current-user"
+                >
+                  <User className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  {displayName || "User"}
+                </Badge>
+                <Badge 
+                  variant={role === "admin" ? "default" : role === "president" || role === "vice_president" ? "secondary" : "outline"}
+                  className="rounded-full px-2 py-0.5 text-xs"
+                  data-testid="badge-user-role"
+                >
+                  {role === "admin" ? "Admin" : role === "president" ? "President" : role === "vice_president" ? "VP" : "Staff"}
+                </Badge>
+              </div>
             </div>
           </div>
 
@@ -764,13 +934,16 @@ export default function DashboardPage() {
             >
               Strategy notes
             </TabsTrigger>
-            <TabsTrigger
-              value="donors"
-              className="rounded-lg text-xs md:text-sm"
-              data-testid="tab-donors"
-            >
-              Donors
-            </TabsTrigger>
+            {canViewDonors && (
+              <TabsTrigger
+                value="donors"
+                className="rounded-lg text-xs md:text-sm"
+                data-testid="tab-donors"
+              >
+                <Shield className="h-3 w-3 mr-1" />
+                Donors
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="act" className="mt-4" data-testid="tabcontent-act">
@@ -1757,35 +1930,49 @@ export default function DashboardPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="donors" className="mt-4" data-testid="tabcontent-donors">
-            <Card className="overflow-hidden border-border/70 bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/55">
-              <div className="p-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                    <h2 className="text-lg font-semibold" data-testid="text-donors-title">
-                      Donor Database
-                    </h2>
+          {canViewDonors && (
+            <TabsContent value="donors" className="mt-4" data-testid="tabcontent-donors">
+              <Card className="overflow-hidden border-border/70 bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/55">
+                <div className="p-5">
+                  <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+                    <Shield className="h-4 w-4" />
+                    <span>Confidential donor information - authorized access only ({role === "admin" ? "Administrator" : role === "president" ? "President" : "Vice President"})</span>
                   </div>
-                  <Badge variant="outline" className="rounded-full" data-testid="badge-donor-count">
-                    {donorsData.length} donors
-                  </Badge>
-                </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                      <h2 className="text-lg font-semibold" data-testid="text-donors-title">
+                        Donor Database
+                      </h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="rounded-full" data-testid="badge-donor-count">
+                        {donorsData.length} donors
+                      </Badge>
+                      {canEditDonors && (
+                        <Button size="sm" onClick={openAddDonor} className="rounded-full" data-testid="button-add-donor">
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Donor
+                        </Button>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="mt-4 overflow-x-auto">
-                  <table className="w-full text-sm" data-testid="table-donors">
-                    <thead>
-                      <tr className="border-b border-border/70 text-left text-muted-foreground">
-                        <th className="py-3 pr-4 font-medium">Name</th>
-                        <th className="py-3 pr-4 font-medium">Type</th>
-                        <th className="py-3 pr-4 font-medium">Organization</th>
-                        <th className="py-3 pr-4 font-medium text-right">Total Given</th>
-                        <th className="py-3 pr-4 font-medium">Last Gift</th>
-                        <th className="py-3 pr-4 font-medium">Contact</th>
-                        <th className="py-3 pr-4 font-medium">Location</th>
-                        <th className="py-3 font-medium">Added</th>
-                      </tr>
-                    </thead>
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-sm" data-testid="table-donors">
+                      <thead>
+                        <tr className="border-b border-border/70 text-left text-muted-foreground">
+                          <th className="py-3 pr-4 font-medium">Name</th>
+                          <th className="py-3 pr-4 font-medium">Type</th>
+                          <th className="py-3 pr-4 font-medium">Organization</th>
+                          <th className="py-3 pr-4 font-medium text-right">Total Given</th>
+                          <th className="py-3 pr-4 font-medium">Last Gift</th>
+                          <th className="py-3 pr-4 font-medium">Contact</th>
+                          <th className="py-3 pr-4 font-medium">Location</th>
+                          <th className="py-3 font-medium">Added</th>
+                          {canEditDonors && <th className="py-3 font-medium">Actions</th>}
+                        </tr>
+                      </thead>
                     <tbody>
                       {donorsData.map((donor) => (
                         <tr
@@ -1849,6 +2036,30 @@ export default function DashboardPage() {
                           <td className="py-3 text-xs text-muted-foreground" data-testid={`text-donor-created-${donor.id}`}>
                             {new Date(donor.createdAt).toLocaleDateString()}
                           </td>
+                          {canEditDonors && (
+                            <td className="py-3">
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditDonor(donor)}
+                                  className="h-8 w-8 p-0"
+                                  data-testid={`button-edit-donor-${donor.id}`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => confirmDeleteDonor(donor.id)}
+                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                                  data-testid={`button-delete-donor-${donor.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -1857,6 +2068,7 @@ export default function DashboardPage() {
               </div>
             </Card>
           </TabsContent>
+          )}
         </Tabs>
       </main>
 
@@ -1934,6 +2146,165 @@ export default function DashboardPage() {
               data-testid="button-send-message"
             >
               Send (mockup)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={donorDialogOpen} onOpenChange={setDonorDialogOpen}>
+        <DialogContent className="border-border/70 bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70 max-w-2xl">
+          <DialogHeader>
+            <DialogTitle data-testid="text-donor-dialog-title">
+              {editingDonor ? "Edit Donor" : "Add New Donor"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingDonor ? "Update donor information." : "Add a new donor to the database."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="donor-name">Name *</Label>
+                <Input
+                  id="donor-name"
+                  value={donorForm.name}
+                  onChange={(e) => setDonorForm({ ...donorForm, name: e.target.value })}
+                  placeholder="Full name"
+                  data-testid="input-donor-name"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="donor-type">Type *</Label>
+                <Select
+                  value={donorForm.type}
+                  onValueChange={(val: "Individual" | "Corporation" | "Foundation") =>
+                    setDonorForm({ ...donorForm, type: val })
+                  }
+                >
+                  <SelectTrigger data-testid="select-donor-type">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Individual">Individual</SelectItem>
+                    <SelectItem value="Corporation">Corporation</SelectItem>
+                    <SelectItem value="Foundation">Foundation</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="donor-organization">Organization</Label>
+              <Input
+                id="donor-organization"
+                value={donorForm.organization}
+                onChange={(e) => setDonorForm({ ...donorForm, organization: e.target.value })}
+                placeholder="Company or foundation name"
+                data-testid="input-donor-organization"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="donor-total">Total Given *</Label>
+                <Input
+                  id="donor-total"
+                  type="number"
+                  value={donorForm.totalGiven}
+                  onChange={(e) => setDonorForm({ ...donorForm, totalGiven: e.target.value })}
+                  placeholder="0.00"
+                  data-testid="input-donor-total"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="donor-lastamount">Last Gift Amount *</Label>
+                <Input
+                  id="donor-lastamount"
+                  type="number"
+                  value={donorForm.lastGiftAmount}
+                  onChange={(e) => setDonorForm({ ...donorForm, lastGiftAmount: e.target.value })}
+                  placeholder="0.00"
+                  data-testid="input-donor-lastamount"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="donor-lastdate">Last Gift Date *</Label>
+                <Input
+                  id="donor-lastdate"
+                  type="date"
+                  value={donorForm.lastGiftDate}
+                  onChange={(e) => setDonorForm({ ...donorForm, lastGiftDate: e.target.value })}
+                  data-testid="input-donor-lastdate"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="donor-email">Email</Label>
+                <Input
+                  id="donor-email"
+                  type="email"
+                  value={donorForm.email}
+                  onChange={(e) => setDonorForm({ ...donorForm, email: e.target.value })}
+                  placeholder="email@example.com"
+                  data-testid="input-donor-email"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="donor-phone">Phone</Label>
+                <Input
+                  id="donor-phone"
+                  type="tel"
+                  value={donorForm.phone}
+                  onChange={(e) => setDonorForm({ ...donorForm, phone: e.target.value })}
+                  placeholder="(123) 456-7890"
+                  data-testid="input-donor-phone"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="donor-city">City</Label>
+                <Input
+                  id="donor-city"
+                  value={donorForm.city}
+                  onChange={(e) => setDonorForm({ ...donorForm, city: e.target.value })}
+                  placeholder="Boston"
+                  data-testid="input-donor-city"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="donor-state">State</Label>
+                <Input
+                  id="donor-state"
+                  value={donorForm.state}
+                  onChange={(e) => setDonorForm({ ...donorForm, state: e.target.value })}
+                  placeholder="MA"
+                  data-testid="input-donor-state"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              className="rounded-full"
+              onClick={() => setDonorDialogOpen(false)}
+              data-testid="button-cancel-donor"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="rounded-full"
+              onClick={saveDonor}
+              disabled={!donorForm.name || !donorForm.totalGiven || !donorForm.lastGiftDate || !donorForm.lastGiftAmount}
+              data-testid="button-save-donor"
+            >
+              {editingDonor ? "Update Donor" : "Add Donor"}
             </Button>
           </DialogFooter>
         </DialogContent>

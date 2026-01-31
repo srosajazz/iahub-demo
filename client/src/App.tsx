@@ -6,18 +6,37 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import DashboardPage from "@/pages/dashboard";
 import LoginPage from "@/pages/login";
+import React, { createContext, useContext } from "react";
 
-async function checkAuth(): Promise<boolean> {
+export type UserRole = "admin" | "president" | "vice_president" | "staff";
+
+interface AuthData {
+  authenticated: boolean;
+  role?: UserRole;
+  displayName?: string;
+}
+
+export const AuthContext = createContext<AuthData>({ authenticated: false });
+
+export function useAuth() {
+  return useContext(AuthContext);
+}
+
+async function checkAuth(): Promise<AuthData> {
   try {
     const res = await fetch("/api/auth/check", { credentials: "include" });
-    return res.ok;
+    if (res.ok) {
+      const data = await res.json();
+      return { authenticated: true, role: data.role, displayName: data.displayName };
+    }
+    return { authenticated: false };
   } catch {
-    return false;
+    return { authenticated: false };
   }
 }
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { data: isAuthenticated, isLoading } = useQuery({
+  const { data: authData, isLoading } = useQuery({
     queryKey: ["auth"],
     queryFn: checkAuth,
     staleTime: 5 * 60 * 1000,
@@ -34,11 +53,15 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     );
   }
 
-  if (!isAuthenticated) {
+  if (!authData?.authenticated) {
     return <Redirect to="/" />;
   }
 
-  return <Component />;
+  return (
+    <AuthContext.Provider value={authData}>
+      <Component />
+    </AuthContext.Provider>
+  );
 }
 
 function Router() {

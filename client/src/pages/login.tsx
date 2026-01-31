@@ -137,6 +137,28 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          <div className="mt-6 pt-6 border-t border-border/50">
+            <p className="text-xs text-muted-foreground mb-3 text-center">Demo Accounts (Password: IAberk26)</p>
+            <div className="grid gap-2 text-xs">
+              <div className="flex justify-between items-center p-2 rounded bg-muted/50">
+                <span className="font-medium">admin</span>
+                <span className="text-muted-foreground">Administrator - Full access + Donor CRUD</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded bg-muted/50">
+                <span className="font-medium">president</span>
+                <span className="text-muted-foreground">President - Can view donors</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded bg-muted/50">
+                <span className="font-medium">vp</span>
+                <span className="text-muted-foreground">Vice President - Can view donors</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded bg-muted/50">
+                <span className="font-medium">staff</span>
+                <span className="text-muted-foreground">Staff - No donor access</span>
+              </div>
+            </div>
+          </div>
+
           {/* Credentials hint box */}
           <div className="mt-8 p-4 rounded-lg bg-muted/50 border border-border">
             <p className="text-xs text-muted-foreground mb-2 font-medium">
