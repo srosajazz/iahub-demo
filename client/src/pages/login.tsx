@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import berkleeLogo from "@/assets/images/berklee-logo.png";
+import bostonConservatoryLogo from "@/assets/images/boston-conservatory-logo.png";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -66,10 +68,7 @@ export default function LoginPage() {
           </h1>
           <div className="flex items-center justify-center gap-4 mt-12">
             <div className="flex items-center gap-2" style={{ color: "#3D3D3D" }}>
-              <svg viewBox="0 0 32 32" className="w-8 h-8" fill="currentColor">
-                <rect x="2" y="2" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2"/>
-                <path d="M8 8h6v16h-6v-16z M18 8h6v8h-6v-8z" fill="currentColor"/>
-              </svg>
+              <img src={berkleeLogo} alt="Berklee" className="w-8 h-8 object-contain" />
               <div className="text-left">
                 <div className="font-bold text-sm tracking-wide">Berklee</div>
                 <div className="text-[10px] tracking-wide">College of Music</div>
@@ -77,10 +76,7 @@ export default function LoginPage() {
             </div>
             <div className="w-px h-10" style={{ backgroundColor: "#3D3D3D", opacity: 0.5 }} />
             <div className="flex items-center gap-2" style={{ color: "#3D3D3D" }}>
-              <svg viewBox="0 0 32 32" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="16" cy="16" r="12"/>
-                <path d="M16 4 C16 4 22 10 22 16 C22 22 16 28 16 28 C16 28 10 22 10 16 C10 10 16 4 16 4" fill="currentColor" stroke="none"/>
-              </svg>
+              <img src={bostonConservatoryLogo} alt="Boston Conservatory" className="w-8 h-8 object-contain" />
               <div className="text-left">
                 <div className="font-bold text-sm tracking-widest">BOSTON</div>
                 <div className="text-[9px] tracking-widest">CONSERVATORY</div>
