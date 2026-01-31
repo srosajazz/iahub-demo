@@ -214,19 +214,19 @@ function msToCountdown(ms: number) {
 
 // API Functions
 async function fetchDueItems(): Promise<DueItem[]> {
-  const res = await fetch("/api/due-items");
+  const res = await fetch("/api/due-items", { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch due items");
   return res.json();
 }
 
 async function fetchMessages(): Promise<Message[]> {
-  const res = await fetch("/api/messages");
+  const res = await fetch("/api/messages", { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch messages");
   return res.json();
 }
 
 async function fetchActionItems(): Promise<ActionItemAPI[]> {
-  const res = await fetch("/api/action-items");
+  const res = await fetch("/api/action-items", { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch action items");
   return res.json();
 }
@@ -236,6 +236,7 @@ async function createMessage(data: { toTeam: string; subject: string; body: stri
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to create message");
   return res.json();
@@ -246,6 +247,7 @@ async function updateDueItem(id: string, updates: Partial<DueItem>): Promise<Due
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to update due item");
   return res.json();
@@ -256,13 +258,14 @@ async function updateActionItemDone(id: string, isDone: boolean): Promise<Action
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ isDone }),
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to update action item");
   return res.json();
 }
 
 async function fetchDonors(): Promise<Donor[]> {
-  const res = await fetch("/api/donors");
+  const res = await fetch("/api/donors", { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch donors");
   return res.json();
 }

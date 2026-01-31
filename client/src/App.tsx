@@ -9,7 +9,7 @@ import LoginPage from "@/pages/login";
 
 async function checkAuth(): Promise<boolean> {
   try {
-    const res = await fetch("/api/auth/check");
+    const res = await fetch("/api/auth/check", { credentials: "include" });
     return res.ok;
   } catch {
     return false;
