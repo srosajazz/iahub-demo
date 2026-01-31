@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -44,17 +44,22 @@ import {
   ClipboardList,
   Database,
   Edit,
+  FileText,
   Flag,
+  LayoutDashboard,
   LogOut,
   Mail,
   Plus,
   Radar,
+  Settings,
   Shield,
   Sparkles,
+  Target,
   Timer,
   Trash2,
   User,
   Users,
+  Zap,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -740,50 +745,101 @@ export default function DashboardPage() {
     );
   }
 
+  const [activeTab, setActiveTab] = React.useState("act");
+
+  const navItems = [
+    { id: "act", label: "Act now", icon: Zap },
+    { id: "due", label: "Due dates", icon: CalendarClock },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "strategy", label: "Strategy notes", icon: FileText },
+    ...(canViewDonors ? [{ id: "donors", label: "Donors", icon: Shield }] : []),
+  ];
+
   return (
-    <div className="min-h-dvh hero-wash grain">
-      <header className="mx-auto w-full max-w-6xl px-5 pt-10 pb-6">
-        <div className="flex flex-col gap-3">
-          <Badge
-            variant="secondary"
-            className="w-fit rounded-full px-3 py-1 text-[12px]"
-            data-testid="badge-disclaimer"
-          >
-            {data.disclaimer}
-          </Badge>
-
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div className="flex flex-col gap-1">
-              <h1
-                className="font-serif text-3xl leading-tight tracking-[-0.02em] md:text-4xl"
-                data-testid="text-title"
-              >
-                IAHub
-              </h1>
-              <p
-                className="text-sm text-muted-foreground md:text-[15px]"
-                data-testid="text-subtitle"
-              >
-                Institutional Advancement dashboard hub: pipeline visibility, campaign pacing, engagement
-                opportunity, and data-quality signals—designed for executive decision cadence.
-              </p>
+    <div className="min-h-dvh flex hero-wash grain">
+      <aside className="hidden md:flex w-64 flex-col border-r border-border/50 bg-card/30 backdrop-blur supports-[backdrop-filter]:bg-card/20">
+        <div className="p-4 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600">
+              <Target className="h-5 w-5 text-white" aria-hidden="true" />
             </div>
+            <div>
+              <h1 className="font-semibold text-lg leading-tight" data-testid="text-title">IAHub</h1>
+            </div>
+          </div>
+        </div>
 
-            <div className="flex flex-col items-start gap-2 md:items-end">
-              <div className="flex items-center gap-2" data-testid="group-asof">
-                <span
-                  className="text-xs text-muted-foreground"
-                  data-testid="text-asof-label"
+        <nav className="flex-1 p-3 space-y-1">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === item.id
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              }`}
+              data-testid={`nav-${item.id}`}
+            >
+              <item.icon className="h-4 w-4" aria-hidden="true" />
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="p-3 border-t border-border/50">
+          <div className="flex items-center gap-3 px-3 py-2">
+            <div className="grid h-9 w-9 place-items-center rounded-full bg-muted">
+              <User className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate" data-testid="sidebar-user-name">
+                {displayName || "User"}
+              </div>
+              <div className="text-xs text-muted-foreground" data-testid="sidebar-user-role">
+                {role === "admin" ? "Administrator" : role === "president" ? "President" : role === "vice_president" ? "Vice President" : "Staff"}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={async () => {
+                await fetch("/api/logout", { method: "POST", credentials: "include" });
+                window.location.href = "/";
+              }}
+              data-testid="button-logout"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
+      </aside>
+
+      <div className="flex-1 flex flex-col min-h-dvh overflow-auto">
+        <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Badge
+                  variant="secondary"
+                  className="rounded-full px-3 py-1 text-[11px] mb-2"
+                  data-testid="badge-disclaimer"
                 >
-                  {data.campaign.asOfLabel}
-                </span>
-                <Separator orientation="vertical" className="h-4" />
-                <span className="text-xs" data-testid="text-records-note">
-                  Synthetic indicators only
-                </span>
+                  {data.disclaimer}
+                </Badge>
+                <p className="text-sm text-muted-foreground" data-testid="text-subtitle">
+                  Pipeline visibility, campaign pacing, engagement opportunity, and data-quality signals.
+                </p>
               </div>
 
-              <div className="flex items-center gap-2" data-testid="group-alerts">
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground" data-testid="group-asof">
+                  <span>{data.campaign.asOfLabel}</span>
+                  <Separator orientation="vertical" className="h-4" />
+                  <span>Synthetic indicators only</span>
+                </div>
+
                 <Badge
                   className="rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 px-3 py-1"
                   data-testid="badge-due-open"
@@ -804,7 +860,7 @@ export default function DashboardPage() {
                 </Badge>
 
                 <Button
-                  className="h-8 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:from-blue-700 hover:to-blue-800 hover:shadow-lg transition-all"
+                  className="h-9 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:from-blue-700 hover:to-blue-800 hover:shadow-lg transition-all"
                   onClick={() => openCompose({
                     toTeam: "IA",
                     subject: "IAHub follow-up: due items + next steps",
@@ -816,148 +872,69 @@ export default function DashboardPage() {
                   Message IA team
                 </Button>
               </div>
-
-              <div className="flex items-center gap-2 mt-2 md:mt-0">
-                <Badge 
-                  variant="outline" 
-                  className="rounded-full px-3 py-1"
-                  data-testid="badge-current-user"
-                >
-                  <User className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                  {displayName || "User"}
-                </Badge>
-                <Badge 
-                  variant={role === "admin" ? "default" : role === "president" || role === "vice_president" ? "secondary" : "outline"}
-                  className="rounded-full px-2 py-0.5 text-xs"
-                  data-testid="badge-user-role"
-                >
-                  {role === "admin" ? "Admin" : role === "president" ? "President" : role === "vice_president" ? "VP" : "Staff"}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 rounded-full px-3"
-                  onClick={async () => {
-                    await fetch("/api/logout", { method: "POST", credentials: "include" });
-                    window.location.href = "/";
-                  }}
-                  data-testid="button-logout"
-                >
-                  <LogOut className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                  Logout
-                </Button>
-              </div>
             </div>
           </div>
+        </header>
 
-          <div className="mt-1 grid gap-3 md:grid-cols-12" data-testid="row-exec-strip">
-            <Card className="md:col-span-8 border-border/70 bg-card/70 p-4 backdrop-blur supports-[backdrop-filter]:bg-card/55">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="grid h-8 w-8 place-items-center rounded-lg bg-secondary">
-                      <ClipboardList className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <div>
-                      <div className="text-sm font-medium" data-testid="text-actions-title">
-                        Top actions
-                      </div>
-                      <div className="text-xs text-muted-foreground" data-testid="text-actions-subtitle">
-                        A short, practical list aligned to IA priorities and campaign readiness.
-                      </div>
-                    </div>
-                  </div>
-
-                  <Badge
-                    variant="secondary"
-                    className="rounded-full"
-                    data-testid="badge-actions-progress"
-                  >
-                    {doneCount}/{actionsTotal} done
-                  </Badge>
+        <div className="p-6">
+          <div className="grid gap-4 md:grid-cols-3 mb-6">
+            <Card className="p-4 bg-gradient-to-br from-rose-50 to-rose-100/50 dark:from-rose-950/30 dark:to-rose-900/20 border-rose-200/50 dark:border-rose-800/30">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-rose-500/20">
+                  <ClipboardList className="h-5 w-5 text-rose-600 dark:text-rose-400" aria-hidden="true" />
                 </div>
-
-                <div className="h-2 overflow-hidden rounded-full bg-muted" data-testid="progress-actions">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${Math.round(actionsDonePct * 100)}%`,
-                      background: "linear-gradient(90deg, hsl(var(--chart-3)), hsl(var(--chart-2)))",
-                    }}
-                  />
-                </div>
-
-                <div className="text-xs text-muted-foreground" data-testid="text-actions-helper">
-                  Mark items as done to simulate weekly operating cadence.
+                <div>
+                  <div className="text-xs text-muted-foreground" data-testid="text-actions-label">Top actions</div>
+                  <div className="text-xl font-semibold" data-testid="text-actions-count">{doneCount}/{actionsTotal}</div>
+                  <div className="text-xs text-muted-foreground">done</div>
                 </div>
               </div>
             </Card>
 
-            <Card className="md:col-span-4 border-border/70 bg-card/70 p-4 backdrop-blur supports-[backdrop-filter]:bg-card/55">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs text-muted-foreground" data-testid="text-northstar-label">
-                    {data.strategy.northStar.label}
-                  </div>
-                  <div className="mt-1 font-serif text-2xl" data-testid="text-northstar-value">
-                    {data.strategy.northStar.value}
-                  </div>
+            <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200/50 dark:border-blue-800/30">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-blue-500/20">
+                  <Flag className="h-5 w-5 text-blue-600 dark:text-blue-400" aria-hidden="true" />
                 </div>
-                <span
-                  className="grid h-9 w-9 place-items-center rounded-xl bg-secondary"
-                  aria-hidden="true"
-                >
-                  <Flag className="h-4 w-4" />
-                </span>
+                <div>
+                  <div className="text-xs text-muted-foreground" data-testid="text-northstar-label">{data.strategy.northStar.label}</div>
+                  <div className="text-xl font-semibold" data-testid="text-northstar-value">{data.strategy.northStar.value}</div>
+                </div>
               </div>
-              <div className="mt-2 text-xs text-muted-foreground" data-testid="text-northstar-note">
-                {data.strategy.northStar.note}
+            </Card>
+
+            <Card className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200/50 dark:border-emerald-800/30">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-emerald-500/20">
+                  <Radar className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Pipeline health</div>
+                  <div className="text-xl font-semibold">{100 - data.dataQuality.missingCapacityPct}%</div>
+                  <div className="text-xs text-muted-foreground">data quality</div>
+                </div>
               </div>
             </Card>
           </div>
-        </div>
-      </header>
 
-      <main className="mx-auto w-full max-w-6xl px-5 pb-14">
-        <Tabs defaultValue="act" className="w-full" data-testid="tabs-sections">
-          <TabsList
-            className="h-10 w-full justify-start rounded-xl bg-card/60 p-1 backdrop-blur supports-[backdrop-filter]:bg-card/40"
-            data-testid="tabslist-sections"
-          >
-            <TabsTrigger value="act" className="rounded-lg text-xs md:text-sm" data-testid="tab-act">
-              Act now
-            </TabsTrigger>
-            <TabsTrigger
-              value="due"
-              className="rounded-lg text-xs md:text-sm"
-              data-testid="tab-due"
+          <div className="md:hidden mb-4">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              className="w-full p-2 rounded-lg border border-border bg-background"
+              data-testid="mobile-nav-select"
             >
-              Due dates
-            </TabsTrigger>
-            <TabsTrigger
-              value="dashboard"
-              className="rounded-lg text-xs md:text-sm"
-              data-testid="tab-dashboard"
-            >
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger
-              value="strategy"
-              className="rounded-lg text-xs md:text-sm"
-              data-testid="tab-strategy"
-            >
-              Strategy notes
-            </TabsTrigger>
-            {canViewDonors && (
-              <TabsTrigger
-                value="donors"
-                className="rounded-lg text-xs md:text-sm"
-                data-testid="tab-donors"
-              >
-                <Shield className="h-3 w-3 mr-1" />
-                Donors
-              </TabsTrigger>
-            )}
+              {navItems.map((item) => (
+                <option key={item.id} value={item.id}>{item.label}</option>
+              ))}
+            </select>
+          </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" data-testid="tabs-sections">
+          <TabsList className="sr-only">
+            {navItems.map((item) => (
+              <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="act" className="mt-4" data-testid="tabcontent-act">
@@ -2084,7 +2061,8 @@ export default function DashboardPage() {
           </TabsContent>
           )}
         </Tabs>
-      </main>
+        </div>
+      </div>
 
       <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
         <DialogContent className="border-border/70 bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70">
