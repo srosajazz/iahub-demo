@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
-import { Card } from "@/components/ui/card";
+import berkleeLogo from "@/assets/images/berklee-logo.png";
+import bostonConservatoryLogo from "@/assets/images/boston-conservatory-logo.png";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import berkleeLogo from "@/assets/images/berklee-logo.png";
-import bostonConservatoryLogo from "@/assets/images/boston-conservatory-logo.png";
-import { Users, Target, Handshake, Sparkles, Building2, Heart, GraduationCap, Music } from "lucide-react";
+import { Building2, GraduationCap, Handshake, Heart, Sparkles, Target, Users } from "lucide-react";
+import { useState } from "react";
+import { useLocation } from "wouter";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -30,9 +30,9 @@ export default function LoginPage() {
       if (res.ok) {
         toast({
           title: "Welcome to IAHub",
-          description: "Redirecting to dashboard...",
+          description: "Redirecting to home...",
         });
-        setLocation("/dashboard");
+        setLocation("/home");
       } else {
         toast({
           title: "Login failed",
@@ -73,7 +73,7 @@ export default function LoginPage() {
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl">
             <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight mb-6">
-              Institutional<br />Advancement
+              Institutional<br />Advancement HUB
             </h1>
             <p className="text-lg text-gray-300 mb-8 leading-relaxed">
               Building partnerships, fostering relationships, and supporting

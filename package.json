@@ -7,6 +7,7 @@
     "dev:client": "vite dev --port 5000",
     "dev": "NODE_ENV=development tsx server/index.ts",
     "build": "tsx script/build.ts",
+    "build:demo": "VITE_IS_DEMO=true vite build --base=./",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push"
@@ -58,6 +59,7 @@
     "http-proxy-middleware": "^3.0.5",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.545.0",
+    "material-react-toastify": "^10.0.5",
     "memorystore": "^1.6.7",
     "next-themes": "^0.4.6",
     "passport": "^0.7.0",
@@ -98,6 +100,7 @@
     "autoprefixer": "^10.4.21",
     "drizzle-kit": "^0.31.4",
     "esbuild": "^0.25.0",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.20.5",

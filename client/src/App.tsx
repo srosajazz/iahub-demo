@@ -1,12 +1,21 @@
-import { Switch, Route, useLocation, Redirect } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
 import DashboardPage from "@/pages/dashboard";
+import DetailsPage from "@/pages/details";
+import DonorsPage from "@/pages/donors";
+import HomePage from "@/pages/home";
 import LoginPage from "@/pages/login";
+import NotFound from "@/pages/not-found";
+import ReportsPage from "@/pages/reports";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { ToastContainer } from 'material-react-toastify';
+import 'material-react-toastify/dist/ReactToastify.css';
 import React, { createContext, useContext } from "react";
+import { Redirect, Route, Switch } from "wouter";
+import { queryClient } from "./lib/queryClient";
+
+
 
 export type UserRole = "admin" | "president" | "vice_president" | "staff";
 
@@ -23,6 +32,15 @@ export function useAuth() {
 }
 
 async function checkAuth(): Promise<AuthData> {
+  // Static Demo Mode Bypass for GitHub Pages
+  if (import.meta.env.VITE_IS_DEMO === 'true') {
+     return { 
+       authenticated: true, 
+       role: 'admin', 
+       displayName: 'Demo Admin' 
+     };
+  }
+
   try {
     const res = await fetch("/api/auth/check", { credentials: "include" });
     if (res.ok) {
@@ -68,8 +86,20 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={LoginPage} />
+      <Route path="/home">
+        {() => <ProtectedRoute component={HomePage} />}
+      </Route>
       <Route path="/dashboard">
         {() => <ProtectedRoute component={DashboardPage} />}
+      </Route>
+      <Route path="/details">
+        {() => <ProtectedRoute component={DetailsPage} />}
+      </Route>
+      <Route path="/reports">
+        {() => <ProtectedRoute component={ReportsPage} />}
+      </Route>
+      <Route path="/donors">
+        {() => <ProtectedRoute component={DonorsPage} />}
       </Route>
       <Route component={NotFound} />
     </Switch>
@@ -79,12 +109,17 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme" attribute="class">
+        <TooltipProvider>
+          <Toaster />
+          <ToastContainer />
+          <Router />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
 
 export default App;
+
+

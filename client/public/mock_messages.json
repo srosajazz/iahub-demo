@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1",
+    "toTeam": "Annual Giving",
+    "subject": "Fall Appeal Strategy",
+    "body": "Let's align on the segmentation for the upcoming Fall Appeal.",
+    "createdAt": "2024-10-15T10:00:00Z"
+  },
+  {
+    "id": "2",
+    "toTeam": "CFR",
+    "subject": "Kresge Grant Review",
+    "body": "The draft proposal is ready for your review. Please have a look by Friday.",
+    "createdAt": "2024-10-14T14:30:00Z"
+  }
+]
